@@ -38,6 +38,8 @@ class SlidingLogLimiter(
         local window_ms  = tonumber(ARGV[2])
         local limit      = tonumber(ARGV[3])
 
+        -- Cửa sổ trượt theo now, KHÔNG căn theo clock như Fixed/Sliding Counter.
+        -- Đây là lý do Sliding Log không có boundary để khai thác.
         local window_start = now - window_ms
 
         -- 1. Xóa các entry cũ hơn window
@@ -46,27 +48,32 @@ class SlidingLogLimiter(
         -- 2. Đếm còn lại
         local count = redis.call('ZCARD', key)
 
+        local allowed = 0
         if count < limit then
             -- 3. Ghi timestamp mới. Member = "now:count" để tránh trùng nếu 2 req cùng ms
+            --    (trong cùng 1 ms, window_start không đổi nên count tăng đơn điệu → unique)
             local member = tostring(now) .. ':' .. tostring(count)
             redis.call('ZADD', key, now, member)
             redis.call('PEXPIRE', key, window_ms)
-            return {1, count + 1, 0}
-        else
-            -- Retry after: timestamp cũ nhất + window_ms - now
-            local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
-            local retry_after = window_ms
-            if #oldest >= 2 then
-                local oldest_ts = tonumber(oldest[2])
-                retry_after = math.max(0, oldest_ts + window_ms - now)
-            end
-            return {0, count, retry_after}
+            count = count + 1
+            allowed = 1
         end
+
+        -- Entry cũ nhất rời cửa sổ khi nào = lúc 1 slot được giải phóng.
+        -- Khác Fixed Window (mở 5 slot cùng lúc), ở đây slot mở lẻ tẻ từng cái một.
+        -- Khi bị chặn, đây chính là retry_after.
+        local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+        local slot_free_in_ms = 0
+        if #oldest >= 2 then
+            slot_free_in_ms = math.max(0, tonumber(oldest[2]) + window_ms - now)
+        end
+
+        return {allowed, count, slot_free_in_ms}
     """.trimIndent()
 
     override suspend fun check(userId: String, params: Map<String, Double>): RateLimitResult =
         withContext(Dispatchers.IO) {
-            val windowMs = ((params["window_seconds"] ?: 10.0) * 1000).toLong()
+            val windowMs = (params["window_ms"] ?: 10000.0).toLong()
             val limit    = (params["limit"] ?: 5.0).toLong()
             val nowMs    = System.currentTimeMillis()
             val key      = "rl:{${userId}}:sl"
@@ -83,16 +90,19 @@ class SlidingLogLimiter(
                 limit.toString()
             )
 
-            val allowed      = result[0] == 1L
-            val count        = result[1]
-            val retryAfterMs = result[2]
+            val allowed       = result[0] == 1L
+            val count         = result[1]
+            val slotFreeInMs  = result[2]
 
             RateLimitResult(
                 allowed = allowed,
-                retryAfterMs = if (allowed) 0L else retryAfterMs,
+                retryAfterMs = if (allowed) 0L else slotFreeInMs,
                 stateSnapshot = mapOf(
-                    "count"  to count,
-                    "limit"  to limit
+                    "count" to count,
+                    "limit" to limit,
+                    // Không có reset_in_ms vì cửa sổ trượt liên tục, không có mốc reset.
+                    // Thay vào đó: khi nào entry cũ nhất rời cửa sổ → 1 slot mở ra.
+                    "slot_free_in_ms" to slotFreeInMs
                 )
             )
         }

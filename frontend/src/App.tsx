@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react'
 import './App.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,8 +81,8 @@ type AlgoKey = keyof typeof ALGOS
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatState(snapshot: Record<string, unknown>): string {
-  // Bỏ qua các field kỹ thuật không cần show cho audience
-  const skip = new Set(['window_start_ms'])
+  // window_id hiển thị riêng thành badge, window_start_ms là chi tiết kỹ thuật
+  const skip = new Set(['window_start_ms', 'window_id'])
   return Object.entries(snapshot)
     .filter(([k]) => !skip.has(k))
     .map(([k, v]) => {
@@ -92,6 +92,14 @@ function formatState(snapshot: Record<string, unknown>): string {
       return `${label}: ${val}`
     })
     .join('  ·  ')
+}
+
+/** window_id là số rất lớn (nowMs/windowMs) — rút gọn cho dễ đọc */
+function windowIdOf(state: Record<string, unknown>): number | null {
+  return typeof state.window_id === 'number' ? state.window_id : null
+}
+function shortWindowId(id: number): string {
+  return `W${id % 1000}`
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -289,22 +297,41 @@ export default function App() {
               </div>
             )}
             {events.map((ev, i) => {
-              const is429 = ev.status !== 200
+              const is429    = ev.status !== 200
+              const win      = windowIdOf(ev.state_snapshot)
+              // events[] newest-first → phần tử i+1 là event CŨ hơn
+              const olderWin = i + 1 < events.length ? windowIdOf(events[i + 1].state_snapshot) : null
+              const isBoundary = win != null && olderWin != null && win !== olderWin
+
               return (
-                <div key={i} className={`log-row ${is429 ? 'fail' : 'ok'}`}>
-                  <span className="col-ts">{ev.ts}</span>
-                  <span className="col-user">{ev.user_id}</span>
-                  <span className="col-algo">{ev.algo}</span>
-                  <span className={`col-status ${is429 ? 'fail' : 'ok'}`}>
-                    {is429 ? '❌ 429' : '✅ 200'}
-                  </span>
-                  <span className="col-state">
-                    {is429
-                      ? `retry after ${ev.retry_after_ms ?? '?'}ms`
-                      : formatState(ev.state_snapshot)
-                    }
-                  </span>
-                </div>
+                <Fragment key={i}>
+                  <div className={`log-row ${is429 ? 'fail' : 'ok'}`}>
+                    <span className="col-ts">{ev.ts}</span>
+                    <span className="col-user">{ev.user_id}</span>
+                    <span className="col-algo">{ev.algo}</span>
+                    {win != null && <span className="col-window">{shortWindowId(win)}</span>}
+                    <span className={`col-status ${is429 ? 'fail' : 'ok'}`}>
+                      {is429 ? '❌ 429' : '✅ 200'}
+                    </span>
+                    <span className="col-state">
+                      {is429
+                        ? `retry after ${ev.retry_after_ms ?? '?'}ms`
+                        : formatState(ev.state_snapshot)
+                      }
+                    </span>
+                  </div>
+
+                  {/* Divider giữa 2 window — audience thấy ngay boundary ở đâu */}
+                  {isBoundary && (
+                    <div className="window-divider">
+                      <span className="divider-line" />
+                      <span className="divider-label">
+                        ⬆ {shortWindowId(win)}  ·  WINDOW BOUNDARY  ·  {shortWindowId(olderWin)} ⬇
+                      </span>
+                      <span className="divider-line" />
+                    </div>
+                  )}
+                </Fragment>
               )
             })}
           </div>
