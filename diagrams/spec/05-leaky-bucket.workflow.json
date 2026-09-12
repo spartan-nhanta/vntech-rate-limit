@@ -1,0 +1,201 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Leaky Bucket — làm phẳng traffic bằng hàng đợi",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "messagebus": {
+          "label": "Hàng đợi"
+        },
+        "cloud": {
+          "label": "Hạ nguồn"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Hàng đợi có trần"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_in",
+      "label": "Đầu vào giật cục",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_queue",
+      "label": "Đệm rồi xả đều",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Đầu ra không đổi",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "req",
+    "full",
+    "enq",
+    "drain",
+    "down",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "40 req dồn trong 1 giây",
+      "width": 168
+    },
+    {
+      "id": "full",
+      "lane": "flow",
+      "col": 1,
+      "type": "security",
+      "label": "Queue còn chỗ ?",
+      "sublabel": "trần queue là bắt buộc",
+      "width": 168
+    },
+    {
+      "id": "enq",
+      "lane": "store",
+      "col": 2,
+      "type": "messagebus",
+      "label": "Xếp vào hàng đợi",
+      "sublabel": "FIFO, giữ đúng thứ tự đến",
+      "tag": "request phải chờ tới lượt",
+      "width": 180
+    },
+    {
+      "id": "drain",
+      "lane": "store",
+      "col": 3,
+      "type": "backend",
+      "label": "Xả đều 10 req/s",
+      "sublabel": "tốc độ đầu ra cố định",
+      "tag": "đây là điểm khác Token Bucket",
+      "width": 188
+    },
+    {
+      "id": "down",
+      "lane": "flow",
+      "col": 4,
+      "type": "cloud",
+      "label": "Hạ nguồn",
+      "sublabel": "SMS gateway · API bên thứ ba",
+      "width": 176
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 5,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "trả về sau khi tới lượt",
+      "width": 156
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 2,
+      "type": "security",
+      "label": "429",
+      "sublabel": "hàng đợi đã đầy",
+      "width": 148
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "full",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "full",
+      "to": "enq",
+      "label": "còn chỗ",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "enq",
+      "to": "drain",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "drain",
+      "to": "down",
+      "label": "đều đặn",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "down",
+      "to": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e6",
+      "from": "full",
+      "to": "deny429",
+      "label": "queue đầy",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Mục tiêu khác hẳn năm thuật toán kia",
+      "items": [
+        "Không phải để chặn, mà để LÀM PHẲNG traffic",
+        "Đầu vào giật cục, đầu ra luôn đều — dùng khi hạ nguồn không chịu được burst",
+        "Điển hình: SMS gateway, API bên thứ ba tính tiền theo giây, job ghi hàng loạt vào DB"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Cái giá phải trả",
+      "items": [
+        "Thêm độ trễ: request nằm chờ trong queue thay vì bị từ chối ngay",
+        "Queue bắt buộc phải có trần, nếu không sẽ tích tụ request rồi OOM",
+        "Về toán học tương đương Token Bucket — khác biệt thật nằm ở chỗ có hàng đợi hay không"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Token Bucket — cho phép burst, chặn tốc độ trung bình",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "database": {
+          "label": "Trạng thái lưu trữ"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Bucket trong Redis"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_read",
+      "label": "Đọc bucket",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_refill",
+      "label": "Nạp lại theo thời gian trôi qua",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Lấy token",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "req",
+    "read",
+    "refill",
+    "gate",
+    "take",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "cost = 1 token",
+      "tag": "request nặng có thể tốn nhiều hơn",
+      "width": 176
+    },
+    {
+      "id": "read",
+      "lane": "store",
+      "col": 1,
+      "type": "database",
+      "label": "HMGET tokens, ts",
+      "sublabel": "chỉ hai số cho mỗi user",
+      "width": 168
+    },
+    {
+      "id": "refill",
+      "lane": "flow",
+      "col": 2,
+      "type": "backend",
+      "label": "tokens += (now − ts) × rate",
+      "sublabel": "chặn trên bởi capacity",
+      "tag": "lazy refill, không cần cron",
+      "width": 196
+    },
+    {
+      "id": "gate",
+      "lane": "flow",
+      "col": 3,
+      "type": "security",
+      "label": "tokens ≥ cost ?",
+      "sublabel": "capacity quyết định độ lớn của burst",
+      "width": 176
+    },
+    {
+      "id": "take",
+      "lane": "store",
+      "col": 4,
+      "type": "database",
+      "label": "tokens −= cost, ts = now",
+      "sublabel": "ghi lại trong cùng một script",
+      "width": 184
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 5,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "RateLimit-Remaining",
+      "width": 148
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 4,
+      "type": "security",
+      "label": "429",
+      "sublabel": "bucket giữ nguyên, không trừ gì",
+      "width": 176
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "read",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "read",
+      "to": "refill",
+      "label": "tokens, ts",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "refill",
+      "to": "gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "gate",
+      "to": "take",
+      "label": "đủ token",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "take",
+      "to": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e6",
+      "from": "gate",
+      "to": "deny429",
+      "label": "hết token",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Nếu chỉ nhớ một thuật toán, nhớ cái này",
+      "items": [
+        "Cho phép burst đúng bằng capacity, nhưng tốc độ trung bình dài hạn vẫn bằng refill rate",
+        "Chỉ lưu hai số: số token còn lại và mốc cập nhật cuối",
+        "Mô hình của Stripe, AWS API Gateway và tham số burst= của NGINX"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Lazy refill",
+      "items": [
+        "Không cần cron job hay timer nạp token định kỳ",
+        "Tính lại số token ngay tại thời điểm có request, dựa trên thời gian đã trôi qua",
+        "Nhờ vậy một bucket không hoạt động không tốn CPU nào cả"
+      ]
+    }
+  ]
+}

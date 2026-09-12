@@ -1,0 +1,199 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Sliding Window Log — ghi lại từng mốc thời gian",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "database": {
+          "label": "Trạng thái lưu trữ"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Sorted Set trong Redis"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_trim",
+      "label": "Dọn mốc cũ",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_count",
+      "label": "Đếm 60 giây gần nhất",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Ghi mốc mới",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "req",
+    "trim",
+    "card",
+    "gate",
+    "add",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "t = now",
+      "width": 148
+    },
+    {
+      "id": "trim",
+      "lane": "store",
+      "col": 1,
+      "type": "database",
+      "label": "ZREMRANGEBYSCORE",
+      "sublabel": "xoá mốc cũ hơn now − 60s",
+      "tag": "dọn trước khi đếm",
+      "width": 176
+    },
+    {
+      "id": "card",
+      "lane": "store",
+      "col": 2,
+      "type": "database",
+      "label": "ZCARD",
+      "sublabel": "đếm số mốc còn lại",
+      "width": 156
+    },
+    {
+      "id": "gate",
+      "lane": "flow",
+      "col": 3,
+      "type": "security",
+      "label": "count < 100 ?",
+      "sublabel": "cửa sổ luôn là 60s gần nhất",
+      "width": 164
+    },
+    {
+      "id": "add",
+      "lane": "store",
+      "col": 4,
+      "type": "database",
+      "label": "ZADD now",
+      "sublabel": "ghi thêm một mốc",
+      "width": 156
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 5,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "không có sai số biên",
+      "width": 148
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 4,
+      "type": "security",
+      "label": "429",
+      "sublabel": "không ghi mốc nào",
+      "tag": "request bị chặn không tốn bộ nhớ",
+      "width": 164
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "trim",
+      "label": "dọn log",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "trim",
+      "to": "card",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "card",
+      "to": "gate",
+      "label": "count",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "gate",
+      "to": "add",
+      "label": "còn chỗ",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "add",
+      "to": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e6",
+      "from": "gate",
+      "to": "deny429",
+      "label": "đã đủ 100 mốc",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Chính xác tuyệt đối",
+      "items": [
+        "Không có edge case biên — cửa sổ luôn đúng là 60 giây gần nhất",
+        "Cả bốn lệnh gói trong một Lua script để giữ tính nguyên tử",
+        "Đáng dùng cho limit thấp giá trị cao: gửi OTP, thử mật khẩu, tạo thanh toán"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Cái giá phải trả",
+      "items": [
+        "Bộ nhớ tỉ lệ với SỐ REQUEST, không phải số user",
+        "100.000 user active × 1.000 req mỗi phút = 100 triệu mốc thời gian phải giữ",
+        "Mỗi lần kiểm tra là O(N) theo số mốc trong cửa sổ, không phải O(1)"
+      ]
+    }
+  ]
+}

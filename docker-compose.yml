@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  # Redis standalone — single node, đủ cho demo
+  # KHÔNG phải Redis Cluster (cluster cần 6 node minimum)
+  redis:
+    image: redis:7.2-alpine
+    container_name: rl-demo-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    # save ""         → tắt RDB snapshot (không cần persist cho demo)
+    # appendonly no   → tắt AOF log (nhanh hơn, đủ cho demo)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # RedisInsight — UI xem key/value trong Redis trực tiếp
+  # Mở http://localhost:8001 → thêm connection localhost:6379 → thấy rl:* keys live
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: rl-demo-redisinsight
+    ports:
+      - "8001:5540"
+    depends_on:
+      redis:
+        condition: service_healthy

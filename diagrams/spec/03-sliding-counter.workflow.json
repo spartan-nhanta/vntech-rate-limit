@@ -1,0 +1,215 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Sliding Window Counter — xấp xỉ bằng hai ô",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "database": {
+          "label": "Trạng thái lưu trữ"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Hai counter cố định"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_read",
+      "label": "Đọc hai ô",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_weight",
+      "label": "Tính trọng số",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Quyết định",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "groups": [
+    {
+      "id": "g_windows",
+      "label": "Chỉ hai số nguyên",
+      "lane": "store",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "req",
+    "mget",
+    "cur",
+    "gate",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "t = 12:01:15",
+      "tag": "đã qua 25% ô hiện tại",
+      "width": 164
+    },
+    {
+      "id": "mget",
+      "lane": "flow",
+      "col": 1,
+      "type": "backend",
+      "label": "MGET hai counter",
+      "sublabel": "một round trip duy nhất",
+      "width": 164
+    },
+    {
+      "id": "prev",
+      "lane": "store",
+      "col": 2,
+      "type": "database",
+      "label": "Ô 12:00 = 84",
+      "sublabel": "ô đã đóng",
+      "width": 148
+    },
+    {
+      "id": "cur",
+      "lane": "store",
+      "col": 3,
+      "type": "database",
+      "label": "Ô 12:01 = 36",
+      "sublabel": "ô đang mở",
+      "width": 148
+    },
+    {
+      "id": "gate",
+      "lane": "flow",
+      "col": 4,
+      "type": "security",
+      "label": "84×75% + 36 = 99",
+      "sublabel": "99 ≤ 100 → cho qua",
+      "tag": "ước lượng 60s gần nhất",
+      "width": 176
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 5,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "INCR ô hiện tại",
+      "width": 148
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 5,
+      "type": "security",
+      "label": "429",
+      "sublabel": "khi tổng có trọng số vượt hạn mức",
+      "width": 176
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "mget",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "mget",
+      "to": "prev",
+      "label": "ô trước",
+      "variant": "default"
+    },
+    {
+      "id": "e3",
+      "from": "mget",
+      "to": "cur",
+      "label": "ô hiện tại",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "prev",
+      "to": "gate",
+      "label": "nhân 75%",
+      "variant": "dashed"
+    },
+    {
+      "id": "e5",
+      "from": "cur",
+      "to": "gate",
+      "label": "cộng nguyên",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e6",
+      "from": "gate",
+      "to": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e7",
+      "from": "gate",
+      "to": "deny429",
+      "label": "vượt",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Xấp xỉ nhưng rẻ",
+      "items": [
+        "Chỉ hai số nguyên thay cho N mốc thời gian của Sliding Log",
+        "Xoá được bẫy biên của Fixed Window mà vẫn giữ O(1) bộ nhớ",
+        "Cloudflare công bố sai lệch ở mức phần nghìn phần trăm trên traffic thật"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Giả định cần nhớ",
+      "items": [
+        "Công thức coi request trong ô trước là phân bố đều theo thời gian",
+        "Traffic dồn cục vào cuối ô trước sẽ bị ước lượng thấp hơn thực tế",
+        "Lựa chọn mặc định tốt cho quota theo phút, giờ, ngày"
+      ]
+    }
+  ]
+}

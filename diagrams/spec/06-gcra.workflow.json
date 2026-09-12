@@ -1,0 +1,199 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "GCRA — token bucket viết lại theo kiểu lịch hẹn",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "database": {
+          "label": "Trạng thái lưu trữ"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Một giá trị duy nhất"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_read",
+      "label": "Đọc mốc hẹn",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_calc",
+      "label": "Tính mốc được phép",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Dời lịch",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "req",
+    "read",
+    "calc",
+    "gate",
+    "upd",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "t = now",
+      "width": 148
+    },
+    {
+      "id": "read",
+      "lane": "store",
+      "col": 1,
+      "type": "database",
+      "label": "GET tat",
+      "sublabel": "mốc tới lý thuyết tiếp theo",
+      "tag": "một số duy nhất mỗi key",
+      "width": 180
+    },
+    {
+      "id": "calc",
+      "lane": "flow",
+      "col": 2,
+      "type": "backend",
+      "label": "allowAt = tat − τ",
+      "sublabel": "τ = (capacity − 1) × T",
+      "tag": "T = 1 / rate",
+      "width": 172
+    },
+    {
+      "id": "gate",
+      "lane": "flow",
+      "col": 3,
+      "type": "security",
+      "label": "now ≥ allowAt ?",
+      "sublabel": "τ chính là ngân sách burst",
+      "width": 172
+    },
+    {
+      "id": "upd",
+      "lane": "store",
+      "col": 4,
+      "type": "database",
+      "label": "tat = max(now, tat) + T",
+      "sublabel": "dời lịch rồi EXPIRE",
+      "width": 188
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 5,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "một lần ghi, không cộng dồn",
+      "width": 172
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 4,
+      "type": "security",
+      "label": "429",
+      "sublabel": "Retry-After = allowAt − now",
+      "tag": "tính ra chính xác, không phải đoán",
+      "width": 196
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "read",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "read",
+      "to": "calc",
+      "label": "tat",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "calc",
+      "to": "gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "gate",
+      "to": "upd",
+      "label": "đến đúng lịch",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "upd",
+      "to": "ok",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e6",
+      "from": "gate",
+      "to": "deny429",
+      "label": "còn quá sớm",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Cùng một bài toán, cách ghi sổ khác",
+      "items": [
+        "Tương đương Token Bucket về mặt toán học, nhưng lưu mốc thời gian thay vì số token",
+        "Chỉ một giá trị cho mỗi key, và chỉ một phép cộng — không tích luỹ sai số dấu phẩy động",
+        "Đây là thuật toán bên trong redis-cell"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Vì sao đáng biết dù không dùng ngay",
+      "items": [
+        "Cho ra Retry-After chính xác mà không phải tính thêm bước nào",
+        "Là cầu nối giải thích vì sao Token Bucket và Leaky Bucket là một",
+        "Đổi lại: công thức khó đọc hơn, khó debug hơn khi có sự cố lúc 2 giờ sáng"
+      ]
+    }
+  ]
+}

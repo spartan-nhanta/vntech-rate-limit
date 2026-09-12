@@ -1,0 +1,203 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Fixed Window Counter — cơ chế đếm theo ô thời gian",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "backend": {
+          "label": "Logic limiter"
+        },
+        "security": {
+          "label": "Điểm quyết định"
+        },
+        "messagebus": {
+          "label": "Hàng đợi"
+        },
+        "database": {
+          "label": "Trạng thái lưu trữ"
+        },
+        "external": {
+          "label": "Nguồn request"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "flow",
+      "label": "Đường đi của request"
+    },
+    {
+      "id": "store",
+      "label": "Trạng thái trong Redis"
+    },
+    {
+      "id": "deny",
+      "label": "Nhánh từ chối",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p_key",
+      "label": "Chốt ô thời gian",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "p_count",
+      "label": "Đếm",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "p_out",
+      "label": "Trả kết quả",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "req",
+    "key",
+    "incr",
+    "gate",
+    "ok"
+  ],
+  "nodes": [
+    {
+      "id": "req",
+      "lane": "flow",
+      "col": 0,
+      "type": "external",
+      "label": "Request",
+      "sublabel": "user 1042 · t = 12:00:59",
+      "width": 156
+    },
+    {
+      "id": "key",
+      "lane": "flow",
+      "col": 1,
+      "type": "backend",
+      "label": "Chốt ô phút",
+      "sublabel": "key = rl:1042:1200",
+      "tag": "floor(t / 60s)",
+      "width": 156
+    },
+    {
+      "id": "incr",
+      "lane": "store",
+      "col": 2,
+      "type": "database",
+      "label": "INCR + EXPIRE 60s",
+      "sublabel": "một số nguyên cho mỗi key",
+      "tag": "atomic sẵn",
+      "width": 168
+    },
+    {
+      "id": "gate",
+      "lane": "flow",
+      "col": 3,
+      "type": "security",
+      "label": "count ≤ 100 ?",
+      "sublabel": "so với hạn mức mỗi phút",
+      "width": 156
+    },
+    {
+      "id": "ok",
+      "lane": "flow",
+      "col": 4,
+      "type": "backend",
+      "label": "200 OK",
+      "sublabel": "RateLimit-Remaining",
+      "width": 148
+    },
+    {
+      "id": "deny429",
+      "lane": "deny",
+      "col": 4,
+      "type": "security",
+      "label": "429",
+      "sublabel": "Retry-After: 1",
+      "width": 148
+    },
+    {
+      "id": "reset",
+      "lane": "store",
+      "col": 5,
+      "type": "messagebus",
+      "label": "12:01:00 → count = 0",
+      "sublabel": "mọi key reset cùng một lúc",
+      "width": 168
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "req",
+      "to": "key",
+      "variant": "default"
+    },
+    {
+      "id": "e2",
+      "from": "key",
+      "to": "incr",
+      "label": "tăng counter",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "incr",
+      "to": "gate",
+      "label": "count",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e4",
+      "from": "gate",
+      "to": "ok",
+      "label": "còn hạn mức",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e5",
+      "from": "gate",
+      "to": "deny429",
+      "label": "vượt",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "e6",
+      "from": "incr",
+      "to": "reset",
+      "label": "hết TTL",
+      "variant": "dashed",
+      "role": "async"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Vì sao vẫn được dùng",
+      "items": [
+        "Rẻ nhất trong sáu thuật toán: một số nguyên cho mỗi key",
+        "INCR của Redis đã nguyên tử sẵn, không cần Lua script",
+        "Đủ tốt cho bảo vệ thô ở nội bộ, nơi sai số vài chục phần trăm không gây hại"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Bẫy biên cửa sổ",
+      "items": [
+        "100 request lúc 12:00:59 rồi 100 request lúc 12:01:01 = 200 request trong 2 giây",
+        "Thuật toán chỉ biết đang ở phút nào, không biết 60 giây gần nhất",
+        "Mọi counter reset cùng thời điểm → thundering herd đầu mỗi phút"
+      ]
+    }
+  ]
+}

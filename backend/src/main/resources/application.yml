@@ -1,0 +1,33 @@
+micronaut:
+  application:
+    name: rate-limit-demo
+  server:
+    port: 8080
+    cors:
+      enabled: true
+      configurations:
+        # Cho phép frontend dev (Vite :5173) và bất kỳ origin nào trong demo
+        all:
+          allowed-origin-regex: ".*"
+          allowed-methods:
+            - GET
+            - POST
+            - OPTIONS
+          allowed-headers:
+            - "*"
+          exposed-headers:
+            - "Retry-After"
+            - "X-RateLimit-Limit"
+            - "X-RateLimit-Remaining"
+
+redis:
+  uri: redis://localhost:6379
+
+jackson:
+  serialization:
+    write-dates-as-timestamps: false
+  property-naming-strategy: SNAKE_CASE
+
+logger:
+  levels:
+    com.rldemo: DEBUG
