@@ -21,11 +21,18 @@ import kotlinx.coroutines.withContext
  *   weight = 1 - 7/10 = 30% — còn 30% của window cũ nằm trong cửa sổ trượt
  *   estimate = prev_count × 0.3 + curr_count
  *
- * Worst case: burst 4 req lúc cuối window cũ + burst 4 req lúc cuối window mới
- *   = 8 req thực, nhưng estimate = 4 × (1/10s) + 4 ≈ 4.4 → cho qua
- *   (với limit=5 thì ổn, nhưng hiểu nguyên lý là vẫn có thể vượt)
+ * So với Fixed Window ở boundary (limit=5, window=5s):
+ *   Fixed Window:    5 req cuối window cũ + 5 req đầu window mới = 10 req  ← spike 2× limit
+ *   Sliding Counter: 5 req cuối window cũ + 1 req đầu window mới = 6 req
+ *     vì ngay sau boundary weight ≈ 95% → estimate = floor(5 × 0.95) = 4 < 5 → lọt 1
+ *     request tiếp theo: floor(5 × 0.94 + 1) = 5 → chặn
+ *
+ * Việc lọt thêm 1 request là do math.floor() làm tròn xuống. Đây là đánh đổi
+ * có chủ đích: giữ O(1) memory (2 counter) thay vì lưu từng timestamp như Sliding Log.
  *
  * Return từ Lua: [allowed(1/0), estimate, prev_count, curr_count, weight_pct]
+ *   estimate/prev_count/curr_count đều là giá trị TRƯỚC khi ghi, để snapshot
+ *   phản ánh đúng phép so sánh đã chạy — audience verify được công thức.
  */
 @Singleton
 class SlidingCounterLimiter(
@@ -52,23 +59,25 @@ class SlidingCounterLimiter(
         -- floor để tránh floating point artifacts
         local estimate = math.floor(prev_count * weight + curr_count)
 
+        local weight_pct = math.floor(weight * 100)
+
         if estimate < limit then
             local new_count = redis.call('INCR', curr_key)
             if new_count == 1 then
                 -- TTL = 2 window: window hiện tại + 1 window nữa (key sẽ là prev rồi)
                 redis.call('PEXPIRE', curr_key, window_ms * 2)
             end
-            local weight_pct = math.floor(weight * 100)
-            return {1, estimate + 1, prev_count, curr_count, weight_pct}
+            -- Trả estimate TRƯỚC khi ghi (không +1) để cùng hệ quy chiếu với
+            -- nhánh reject — snapshot khớp đúng phép so sánh estimate < limit
+            return {1, estimate, prev_count, curr_count, weight_pct}
         else
-            local weight_pct = math.floor(weight * 100)
             return {0, estimate, prev_count, curr_count, weight_pct}
         end
     """.trimIndent()
 
     override suspend fun check(userId: String, params: Map<String, Double>): RateLimitResult =
         withContext(Dispatchers.IO) {
-            val windowMs = ((params["window_seconds"] ?: 10.0) * 1000).toLong()
+            val windowMs = (params["window_ms"] ?: 10000.0).toLong()
             val limit    = (params["limit"] ?: 5.0).toLong()
             val nowMs    = System.currentTimeMillis()
 
@@ -97,16 +106,24 @@ class SlidingCounterLimiter(
             val currCount  = result[3]
             val weightPct  = result[4]
 
+            // Thời gian còn lại đến boundary của window hiện tại.
+            // Tính từ clock alignment (nowMs % windowMs), không dùng PTTL —
+            // xem comment trong FixedWindowLimiter về lý do.
+            val resetInMs = windowMs - (nowMs % windowMs)
+
             RateLimitResult(
                 allowed = allowed,
-                // Retry-after thô: chờ đến cuối window hiện tại
-                retryAfterMs = if (allowed) 0L else windowMs - (nowMs % windowMs),
+                retryAfterMs = if (allowed) 0L else resetInMs,
                 stateSnapshot = mapOf(
-                    "estimate"   to estimate,
-                    "prev_count" to prevCount,
-                    "curr_count" to currCount,
-                    "weight_pct" to weightPct,
-                    "limit"      to limit
+                    "estimate"    to estimate,
+                    "prev_count"  to prevCount,
+                    "curr_count"  to currCount,
+                    "weight_pct"  to weightPct,
+                    "limit"       to limit,
+                    // Cho frontend chạy countdown + boundary burst
+                    "reset_in_ms" to resetInMs,
+                    // window_id để frontend nhóm request theo window, thấy rõ boundary
+                    "window_id"   to currIndex
                 )
             )
         }

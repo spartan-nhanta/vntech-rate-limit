@@ -355,3 +355,25 @@ code   { font-family: var(--mono); font-size: 12px; }
 .col-status.ok   { color: var(--green); }
 .col-status.fail { color: var(--red);   }
 .col-state  { color: var(--muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Window ID badge */
+.col-window {
+  min-width: 42px; text-align: center;
+  background: rgba(88,166,255,0.14); color: var(--blue);
+  padding: 1px 6px; border-radius: 4px;
+  font-size: 11px; font-weight: 700;
+}
+
+/* Window boundary divider */
+.window-divider {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px; margin: 2px 0;
+}
+.divider-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, #f0883e, transparent);
+}
+.divider-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  color: #f0883e; white-space: nowrap;
+}

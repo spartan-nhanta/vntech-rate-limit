@@ -42,22 +42,30 @@ class LeakyBucketLimiter(
         local queue_size = tonumber(state[1]) or 0
         local last_drain = tonumber(state[2]) or now
 
-        -- Lazy drain: tính số slot đã được xả từ lần check trước
+        -- Lazy drain: tính lượng đã xả từ lần check trước.
+        -- KHÔNG math.floor ở đây! last_drain bị đẩy lên `now` mỗi lần ghi, nên nếu
+        -- làm tròn xuống thì phần lẻ mất vĩnh viễn. VD drain=1/s, request mỗi 100ms:
+        --   floor(100 × 0.001) = 0 → xô không bao giờ rò, kẹt đầy mãi.
+        -- Giữ số thực giống TokenBucketLimiter, chỉ floor lúc trả về hiển thị.
         local elapsed    = now - last_drain
-        local drained    = math.floor(elapsed * drain_rate_ms)
+        local drained    = elapsed * drain_rate_ms
         local new_size   = math.max(0, queue_size - drained)
 
-        if new_size < capacity then
+        -- Điều kiện là `new_size + 1 <= capacity`, KHÔNG phải `new_size < capacity`.
+        -- Đặt queue = capacity - tokens thì đây chính là `tokens >= 1` của Token Bucket.
+        -- Với số nguyên hai cách viết như nhau, nhưng queue_size là số thực nên
+        -- `9.96 < 10` sẽ lọt và đẩy queue lên 10.96 — vượt capacity, dư 1 request.
+        if new_size + 1 <= capacity then
             redis.call('HMSET', key, 'queue_size', new_size + 1, 'last_drain', now)
             local ttl_ms = math.ceil(capacity / drain_rate_ms)
             redis.call('PEXPIRE', key, ttl_ms)
-            return {1, new_size + 1, 0}
+            return {1, math.floor(new_size + 1), 0}
         else
             -- Bao nhiêu slot phải drain để có chỗ trống?
             -- new_size = capacity → cần drain 1 slot → retry = ceil(1 / drain_rate_ms)
             local over      = new_size - capacity + 1
             local retry_ms  = math.ceil(over / drain_rate_ms)
-            return {0, new_size, retry_ms}
+            return {0, math.floor(new_size), retry_ms}
         end
     """.trimIndent()
 
