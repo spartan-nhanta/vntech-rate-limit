@@ -1,0 +1,14 @@
+# Gradle build output
+build/
+.gradle/
+
+# Gradle wrapper jar — commit properties nhưng không commit binary jar
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Kotlin compile cache
+out/

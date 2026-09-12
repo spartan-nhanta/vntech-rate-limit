@@ -36,6 +36,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 
     runtimeOnly("ch.qos.logback:logback-classic")
+    runtimeOnly("org.yaml:snakeyaml")
 }
 
 application {
@@ -51,6 +52,7 @@ kotlin {
 }
 
 micronaut {
+    version("4.6.3")
     runtime("netty")
     testRuntime("junit5")
     processing {

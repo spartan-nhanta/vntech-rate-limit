@@ -29,9 +29,11 @@ class SseEmitterService(
 ) {
     private val log = LoggerFactory.getLogger(SseEmitterService::class.java)
 
-    // Sink kiểu multicast = nhiều subscriber, directBestEffort = không block khi emit
+    // replay(50) = giữ 50 event gần nhất trong bộ nhớ
+    // → khi browser reconnect (EventSource auto-reconnect), client nhận lại event không miss
+    // directBestEffort() không có buffer → 429 events bị drop khi browser đang reconnect
     private val sink: Sinks.Many<Event<String>> =
-        Sinks.many().multicast().directBestEffort()
+        Sinks.many().replay().limit(50)
 
     /**
      * Gọi từ RateLimitController sau mỗi request check.
