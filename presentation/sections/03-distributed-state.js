@@ -1,0 +1,97 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- ============ SECTION 3 — DISTRIBUTED STATE ============ -->
+<section class="slide divider" data-section="divider-03">
+  <div class="divider-num">03</div>
+  <div class="section-tag"><i></i>SECTION 3</div>
+  <h2>Distributed state</h2>
+  <p class="lead">Why Redis, why Lua — the foundation every algorithm in the next section is built on.</p>
+  <div class="notes"><p>The multi-pod counter problem, the race it creates, the atomic fix, Redis Cluster's hash-tag requirement, and where precision trades off against performance.</p></div>
+  <div class="foot"><span>14 / 45</span><span>act iii · distributed state</span></div>
+</section>
+
+<section class="slide" data-section="multi-pod">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>3.1 · The problem</div>
+  <h2>Per-pod counters multiply the real limit</h2>
+  <div class="body meter" style="justify-content:center;">
+    <svg viewBox="0 0 900 220" style="width:100%;height:auto;overflow:visible;">
+      <rect x="20" y="90" width="120" height="50" rx="10" class="sv-box"/><text x="80" y="120" text-anchor="middle" class="sv-lbl">Request</text>
+      <path d="M140 115 H198" class="sv-line" marker-end="url(#arrow-mp)"/>
+      <rect x="200" y="90" width="150" height="50" rx="10" class="sv-box-hot"/><text x="275" y="120" text-anchor="middle" class="sv-lbl">Load Balancer</text>
+      <path d="M350 115 L420 55" class="sv-line" marker-end="url(#arrow-mp)"/>
+      <path d="M350 115 H420" class="sv-line" marker-end="url(#arrow-mp)"/>
+      <path d="M350 115 L420 191" class="sv-line" marker-end="url(#arrow-mp)"/>
+      <rect x="420" y="30" width="150" height="50" rx="10" class="sv-box"/><text x="495" y="55" text-anchor="middle" class="sv-lbl">Pod 1</text><text x="495" y="71" text-anchor="middle" class="sv-hot">counter = 47</text>
+      <rect x="420" y="98" width="150" height="50" rx="10" class="sv-box"/><text x="495" y="123" text-anchor="middle" class="sv-lbl">Pod 2</text><text x="495" y="139" text-anchor="middle" class="sv-hot">counter = 12</text>
+      <rect x="420" y="166" width="150" height="50" rx="10" class="sv-box"/><text x="495" y="191" text-anchor="middle" class="sv-lbl">Pod 3</text><text x="495" y="207" text-anchor="middle" class="sv-hot">counter = 38</text>
+      <text x="700" y="55" class="sv-lbl">each pod thinks</text>
+      <text x="700" y="71" class="sv-lbl-sm">it's under the limit</text>
+      <text x="700" y="145" class="sv-lbl" font-weight="700">real total: 97</text>
+      <text x="700" y="161" class="sv-lbl-sm">limit configured: 50 — bypassed</text>
+      <defs><marker id="arrow-mp" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
+    </svg>
+  </div>
+  <div class="notes"><p>Three replicas, three independent in-memory counters, three numbers each under budget — and a real total that isn't. The fix is a counter shared in Redis, not three local ones.</p></div>
+  <div class="foot"><span>15 / 45</span><span>distributed state · the problem</span></div>
+</section>
+
+<section class="slide" data-section="race">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-lock"/></svg>3.2–3.3 · Race &amp; fix</div>
+  <h2>Two commands, one race</h2>
+  <div class="split code-left">
+    <div class="stack">
+      <div class="code-label">Two round trips — not atomic</div>
+      <pre class="code">count = INCR(key)      <span class="c">// (1)</span>
+if count == 1:
+  <span class="hl">EXPIRE(key, ttl)</span>    <span class="c">// (2)</span>
+return count</pre>
+    </div>
+    <ul class="points tight" data-step="1">
+      <li><b>Crash between (1) and (2):</b> the key exists with no expiry at all.</li>
+      <li>The counter for that key now grows forever, and every future attempt gets blocked by a limit that never resets.</li>
+      <li><span class="chip">the fix</span> Redis is single-threaded — a Lua script (<code>EVAL</code>/<code>EVALSHA</code>) runs to completion with nothing interleaved. Wrap the read-decide-write in one script and the second pod simply sees the already-updated value.</li>
+    </ul>
+  </div>
+  <div class="notes"><p>This is the sharpest edge in any counter-based limiter built on a key-value store: two commands that look sequential in the code are two separate round trips to the server, and anything can happen in between them.</p></div>
+  <div class="foot"><span>16 / 45</span><span>atomicity · Lua scripts</span></div>
+</section>
+
+<section class="slide" data-section="hash-tags">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>3.4 · Redis Cluster</div>
+  <h2>A Lua script only runs on one node</h2>
+  <div class="split code-left">
+    <pre class="code"><span class="c"># no hash tag — the two keys can land</span>
+<span class="c"># on two different nodes</span>
+rl:user_456:prev  <span class="c">→ node A</span>
+rl:user_456:curr  <span class="c">→ node B</span>  <span class="chip risk" style="margin-left:6px;">CROSSSLOT</span>
+
+<span class="c"># hash tag {} — Redis hashes only</span>
+<span class="c"># the part inside the braces</span>
+<span class="hl">rl:{user_456}:prev</span>  <span class="c">→ hash "user_456" → node B</span>
+<span class="hl">rl:{user_456}:curr</span>  <span class="c">→ hash "user_456" → node B</span>  <span class="chip ok" style="margin-left:6px;">same node</span></pre>
+    <p style="color:var(--body); font-size:16.5px; line-height:1.55;">Two related keys on two different cluster nodes make the Lua script that needs both of them fail outright with a <code>CROSSSLOT</code> error. Wrapping the shared part of the key in <code>{}</code> tells Redis to hash only that substring, guaranteeing every key sharing it lands on the same node — and the script stays legal.</p>
+  </div>
+  <div class="notes"><p>This is a Redis Cluster-specific gotcha that doesn't show up at all against a single Redis instance — worth knowing before the first CROSSSLOT error in production.</p></div>
+  <div class="foot"><span>17 / 45</span><span>redis cluster · hash tags</span></div>
+</section>
+
+<section class="slide" data-section="precision-performance">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-scale"/></svg>3.5 · Precision vs. performance</div>
+  <h2>Three points on the same spectrum</h2>
+  <div class="body meter" style="justify-content:center;">
+    <table class="tbl">
+      <thead><tr><th>Approach</th><th>Latency</th><th>Precision</th><th>Scale</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Lua script<span>strong consistency</span></td><td class="mono">1–4ms (Redis round trip)</td><td>Exact</td><td class="num">~100K req/s per node</td></tr>
+        <tr><td class="name">Local cache<span>async-synced every 100ms</span></td><td class="mono">~0ms</td><td>Can overshoot ~10–30% briefly</td><td class="num">Millions req/s</td></tr>
+        <tr><td class="name">Approximate<span>probabilistic</span></td><td class="mono">~0ms</td><td>Low</td><td class="num">Unbounded</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="points tight" data-step="1">
+    <li>The local-cache pattern is fine for a social feed's like counter and unacceptable for billing — three pods unsynced for 100ms can let through up to 3× the limit in that window.</li>
+  </ul>
+  <div class="notes"><p>This table is the one to return to whenever someone asks "why don't we just cache the counter locally" — the answer depends entirely on what the limit is protecting.</p></div>
+  <div class="foot"><span>18 / 45</span><span>precision vs. performance</span></div>
+</section>
+`);

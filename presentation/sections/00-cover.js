@@ -1,0 +1,27 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- 0 — cover -->
+<section class="slide" data-section="cover">
+  <div class="cover-grid">
+    <div class="stack">
+      <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>The physics of traffic control</div>
+      <h1 class="display">Rate<br />Limiting</h1>
+      <p class="lead">How to keep a normal client, a buggy one, and an attacker from looking identical to a server that has no limiter in front of it.</p>
+    </div>
+    <figure class="gauge-card">
+      <svg viewBox="0 0 220 150" style="width:100%;max-width:260px;">
+        <path d="M20 120 A80 80 0 0 1 200 120" fill="none" class="sv-axis" stroke-width="10" stroke-linecap="round"/>
+        <path d="M20 120 A80 80 0 0 1 108 41" fill="none" stroke="var(--allow)" stroke-width="10" stroke-linecap="round"/>
+        <path d="M108 41 A80 80 0 0 1 168 65" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round"/>
+        <path d="M168 65 A80 80 0 0 1 200 120" fill="none" stroke="var(--reject)" stroke-width="10" stroke-linecap="round"/>
+        <line x1="110" y1="120" x2="164" y2="70" class="sv-line" stroke-width="3"/>
+        <circle cx="110" cy="120" r="7" class="sv-ink"/>
+        <text x="110" y="145" text-anchor="middle" class="sv-lbl-sm">throttled</text>
+      </svg>
+      <figcaption>The needle sits in the teal band the moment a client is asked to slow down.</figcaption>
+    </figure>
+  </div>
+  <div class="notes"><p>Adapted from spartan-nhanta/vntech-rate-limit's internal talk outline. Seven sections: introduction, implementation layers, distributed state, algorithms, system design, a hands-on demo, and checkpoint questions.</p></div>
+  <div class="foot"><span>1 / 45</span><span>rate-limiting.dev</span></div>
+</section>
+`);

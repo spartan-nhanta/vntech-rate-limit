@@ -1,0 +1,24 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- ============ SECTION 7 — CHECKPOINT QUESTIONS ============ -->
+<section class="slide divider" data-section="divider-07">
+  <div class="divider-num">07</div>
+  <div class="section-tag"><i></i>SECTION 7</div>
+  <h2>Checkpoint questions</h2>
+  <p class="lead">Three questions, easy to hard — a quick way to check the ideas actually landed.</p>
+  <div class="notes"><p>Use these live: ask, pause, then reveal. The hard question is a good one to leave as a take-home if time runs short.</p></div>
+  <div class="foot"><span>42 / 45</span><span>act vii · checkpoint questions</span></div>
+</section>
+
+<section class="slide" data-section="checkpoint">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-question"/></svg>Checkpoint questions</div>
+  <h2>Easy, medium, hard</h2>
+  <ul class="points">
+    <li><span class="chip ok">easy</span> <b>Which HTTP status code is returned when a rate limit is exceeded?</b><br/><span style="color:var(--muted);">→ <code>429 Too Many Requests</code>, with a <code>Retry-After</code> header telling the client how long to wait.</span></li>
+    <li data-step="1"><span class="chip hot">medium</span> <b>Why does a Fixed Window Counter let through roughly 2× traffic at a window boundary?</b><br/><span style="color:var(--muted);">→ Each window resets independently: 100 requests at <code>12:00:59</code> fill window 12:00; the clock ticks over, the counter resets to zero, and 100 more immediately after are also allowed — 200 requests in about two seconds against a 100/minute limit. A sliding window never resets abruptly, so it doesn't have this edge.</span></li>
+    <li data-step="2"><span class="chip risk">hard</span> <b>A Redis round trip costs ~5ms per check. How does that cap throughput, and how would you optimize it?</b><br/><span style="color:var(--muted);">→ One thread tops out around 1000ms / 5ms = 200 req/s; 100 concurrent coroutines gets to ~20,000 req/s — not unlimited. In roughly increasing effort: <code>EVALSHA</code> instead of <code>EVAL</code>, a pooled connection, a local cache synced every ~100ms (cuts round trips ~99%, can briefly overshoot), colocating Redis in the same availability zone, and pipelining non-Lua commands where the operation allows it.</span></li>
+  </ul>
+  <div class="notes"><p>The hard question's answer is really a menu, not a single fix — most real systems combine two or three of these rather than picking one.</p></div>
+  <div class="foot"><span>43 / 45</span><span>checkpoint questions</span></div>
+</section>
+`);
