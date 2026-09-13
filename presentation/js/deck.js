@@ -1,10 +1,9 @@
-// Keyboard-driven deck: data-step reveals, #slide.step deep links, N notes, O overview, T theme, F fullscreen.
+// Keyboard-driven deck: data-step reveals, #slide.step deep links, O overview, T theme, F fullscreen.
 (() => {
   const deck = document.getElementById('deck');
   const slides = [...deck.querySelectorAll('.slide')];
   const bar = document.querySelector('.progress i');
   const pager = document.querySelector('.pager');
-  const notesPanel = document.querySelector('.notes-panel');
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fmt = (n) => n.toLocaleString('en-US');
 
@@ -29,7 +28,7 @@
   }
 
   function stagger(slide) {
-    const children = [...slide.children].filter((n) => !n.matches('.notes, .foot'));
+    const children = [...slide.children].filter((n) => !n.matches('.foot'));
     children.forEach((n, i) => { n.style.transitionDelay = `${0.32 + i * 0.1}s`; });
   }
 
@@ -41,8 +40,6 @@
     if (slideChanged) countUp(slide);
     bar.style.width = `${((current + 1) / slides.length) * 100}%`;
     pager.textContent = `${current + 1} / ${slides.length}`;
-    const notes = slide.querySelector('.notes');
-    notesPanel.innerHTML = `<h3>Speaker notes · slide ${current + 1}</h3>${notes ? notes.innerHTML : '<p>No notes for this slide.</p>'}`;
     history.replaceState(null, '', `#${current + 1}.${step}`);
   }
 
@@ -100,10 +97,9 @@
         if (!overview) { e.preventDefault(); prev(); } break;
       case 'Home': go(0); break;
       case 'End': go(slides.length - 1, maxStep(slides[slides.length - 1])); break;
-      case 'n': case 'N': notesPanel.hidden = !notesPanel.hidden; break;
       case 'o': case 'O': toggleOverview(); break;
       case 't': case 'T': toggleTheme(); break;
-      case 'Escape': toggleOverview(false); notesPanel.hidden = true; break;
+      case 'Escape': toggleOverview(false); break;
       case 'f': case 'F':
         if (document.fullscreenElement) document.exitFullscreen();
         else document.documentElement.requestFullscreen?.();
@@ -111,14 +107,11 @@
     }
   });
 
+  // Clicks only pick a slide in overview; advancing is keyboard-only.
   deck.addEventListener('click', (e) => {
-    if (document.body.classList.contains('overview')) {
-      const slide = e.target.closest('.slide');
-      if (slide) { go(slides.indexOf(slide)); toggleOverview(false); }
-      return;
-    }
-    if (e.target.closest('button, input, label, a, .code, .tbl')) return;
-    next();
+    if (!document.body.classList.contains('overview')) return;
+    const slide = e.target.closest('.slide');
+    if (slide) { go(slides.indexOf(slide)); toggleOverview(false); }
   });
 
   addEventListener('resize', fit);

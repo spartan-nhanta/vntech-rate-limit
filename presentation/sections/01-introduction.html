@@ -3,50 +3,172 @@
   <div class="divider-num">01</div>
   <div class="section-tag"><i></i>SECTION 1</div>
   <h2>Introduction</h2>
-  <p class="lead">What rate limiting is, the two concepts people conflate with it, and how a client is told to back off.</p>
-  <div class="notes"><p>Set up the vocabulary before any mechanism — this is the section that keeps "throttling" and "rate limiting" from being used as synonyms for the rest of the deck.</p></div>
-  <div class="foot"><span>2 / 45</span><span>act i · introduction</span></div>
+  <p class="lead">Why an API needs a limit, what to call the different kinds of limits, and what the server sends back when a client hits one.</p>
+  <div class="foot"><span>2 / 48</span><span>act i · introduction</span></div>
+</section>
+
+<section class="slide" data-section="why-limit">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>The problem</div>
+  <h2>One API, four clients, and a server that can't tell them apart</h2>
+  <div class="chart meter" style="flex:1; min-height:0; justify-content:center;">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Four clients sending traffic to one API server">
+      <defs>
+        <marker id="arrow-why" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" class="sv-ink"/></marker>
+      </defs>
+
+      <rect x="20" y="16" width="250" height="56" rx="10" class="sv-box"/>
+      <text x="40" y="40" class="sv-lbl">Normal user</text>
+      <text x="40" y="59" class="sv-lbl-sm">10 req / minute</text>
+      <path d="M270 44 L578 140" class="sv-line" marker-end="url(#arrow-why)"/>
+
+      <rect x="578" y="100" width="240" height="100" rx="12" class="sv-box-hot"/>
+      <text x="698" y="143" text-anchor="middle" class="sv-lbl">API server</text>
+      <text x="698" y="165" text-anchor="middle" class="sv-hot">200 OK</text>
+
+      <g data-step="1">
+        <rect x="20" y="88" width="250" height="56" rx="10" class="sv-box"/>
+        <text x="40" y="112" class="sv-lbl">Buggy mobile build</text>
+        <text x="40" y="131" class="sv-lbl-sm">retries in a loop, no delay</text>
+        <path d="M270 116 L578 156" class="sv-line" stroke-width="4" marker-end="url(#arrow-why)"/>
+
+        <rect x="20" y="160" width="250" height="56" rx="10" class="sv-box"/>
+        <text x="40" y="184" class="sv-lbl">Scraper</text>
+        <text x="40" y="203" class="sv-lbl-sm">100 req / second</text>
+        <path d="M270 188 L578 168" class="sv-line" stroke-width="6" marker-end="url(#arrow-why)"/>
+
+        <rect x="20" y="232" width="250" height="56" rx="10" class="sv-box"/>
+        <text x="40" y="256" class="sv-lbl">Attacker</text>
+        <text x="40" y="275" class="sv-lbl-sm">1M req / second</text>
+        <path d="M270 260 L578 184" class="sv-line" stroke-width="10" marker-end="url(#arrow-why)"/>
+      </g>
+
+      <g data-step="2">
+        <rect x="578" y="100" width="240" height="100" rx="12" class="sv-box-risk"/>
+        <text x="698" y="137" text-anchor="middle" class="sv-lbl">API server</text>
+        <text x="698" y="158" text-anchor="middle" class="sv-risk">CPU 100% · DB pool empty</text>
+        <text x="698" y="180" text-anchor="middle" class="sv-risk">503 for every request</text>
+        <text x="840" y="40" class="sv-lbl">The normal user</text>
+        <text x="840" y="59" class="sv-lbl-sm">gets a 503 too</text>
+        <path d="M838 52 C 800 60, 790 80, 770 98" class="sv-line-soft" marker-end="url(#arrow-why)"/>
+      </g>
+    </svg>
+    <figcaption>Without a limit, the server only sees total load. A bug and an attack look the same, and one bad client is enough to take the API down for everyone.</figcaption>
+  </div>
+  <div class="foot"><span>3 / 48</span><span>why rate limiting exists</span></div>
+</section>
+
+<section class="slide" data-section="what-is-rate-limiting">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>What rate limiting is</div>
+  <h2>Count requests per client. Once a client is over its limit, reject the rest with <code>429</code>.</h2>
+  <div class="split code-left">
+    <pre class="code"><span class="c"># rule: 100 requests / minute / per user</span>
+
+12:00:05  user_A  request #1    → 200 OK
+12:00:05  user_A  request #2    → 200 OK
+          ...
+12:00:41  user_A  request #100  → 200 OK
+<span class="hl">12:00:42  user_A  request #101  → 429 Too Many Requests</span>
+12:00:42  user_B  request #1    → 200 OK   <span class="c"># own counter</span>
+
+12:01:00  <span class="c"># new minute, user_A's counter resets</span>
+12:01:02  user_A  request #1    → 200 OK</pre>
+    <ul class="points tight">
+      <li><span class="chip hot">key</span> Who gets counted: user ID, API key, or IP address.</li>
+      <li><span class="chip hot">limit</span> How many requests are allowed.</li>
+      <li><span class="chip hot">window</span> Over how long: per second, per minute, per day.</li>
+      <li data-step="1">The bad client now hits <b>its own</b> limit. <code>user_B</code> and everyone else keep getting <code>200</code>, and the server stays healthy.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>4 / 48</span><span>definition · key, limit, window</span></div>
 </section>
 
 <section class="slide" data-section="three-concepts">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>Three concepts, one confusion</div>
-  <h2>Rate limiting, throttling, and load shedding aren't the same thing</h2>
+  <div class="eyebrow"><svg class="ic"><use href="#ic-scale"/></svg>Three words people mix up</div>
+  <h2>Ask one question: what happens to the request that goes over?</h2>
   <div class="body meter" style="justify-content:center;">
-    <table class="tbl">
-      <thead><tr><th>Concept</th><th>Behavior once past the threshold</th><th>Where it actually lives</th></tr></thead>
+    <table class="tbl dense">
+      <thead><tr><th></th><th>Rate limiting</th><th>Throttling</th><th>Load shedding</th></tr></thead>
       <tbody>
-        <tr><td class="name">Rate limiting</td><td>Reject immediately — <code>429</code></td><td>HTTP API servers</td></tr>
-        <tr><td class="name">Throttling</td><td>Delay — hold the item, process it later</td><td>Async workers, queue consumers</td></tr>
-        <tr><td class="name">Load shedding</td><td>Reject selectively when the whole system is overloaded</td><td>Circuit breakers, infrastructure</td></tr>
+        <tr><td class="name">Over-limit request</td><td>Reject now · <code>429</code></td><td>Delay · queue or sleep</td><td>Drop · <code>503</code></td></tr>
+        <tr><td class="name">Decides on</td><td>Counter per key: user, API key, IP</td><td>Target rate of the downstream</td><td>Server health: in-flight, CPU, p99</td></tr>
+        <tr><td class="name">Protects</td><td>Other clients (fairness)</td><td>Downstream: DB, SMS gateway</td><td>The service itself</td></tr>
+        <tr><td class="name">Algorithm</td><td>Token bucket, sliding window</td><td>Leaky bucket, blocking acquire</td><td>Concurrency limit, AIMD, priority</td></tr>
+        <tr><td class="name">Client should</td><td>Wait for <code>Retry-After</code>, then retry</td><td>Nothing, it just waits</td><td>Retry with backoff + jitter</td></tr>
+        <tr><td class="name">Seen in</td><td>API gateway, Kong, Stripe API</td><td>Kafka consumers, workers</td><td>Envoy, load balancers, gRPC servers</td></tr>
       </tbody>
     </table>
   </div>
   <ul class="points tight" data-step="1">
-    <li>AWS, Stripe, and GitHub all call their <code>429</code> behavior "rate limiting" even though, strictly, it's a reject — not a delay. In plain HTTP APIs the two words get used interchangeably.</li>
-    <li><b>Real throttling</b> shows up in async systems: a worker pulling off a Kafka topic paces itself against a shared limiter before pushing to a downstream SMS gateway — it <i>sleeps</i>, it doesn't reject, and there's no HTTP client waiting on the other end.</li>
+    <li><b>In HTTP APIs the words are used interchangeably.</b> AWS API Gateway calls its <code>429</code> "throttling"; GitHub and Stripe call it "rate limiting". Both reject, neither delays.</li>
+    <li><b>Throttling in the strict sense</b> needs something that can wait, like a worker reading from a queue. The next slide shows one.</li>
   </ul>
-  <div class="notes"><p>Get this distinction settled early — every later slide about client behavior (backoff, retry, circuit gates) depends on knowing whether the client is being rejected or merely delayed.</p></div>
-  <div class="foot"><span>3 / 45</span><span>rate limiting vs. throttling vs. load shedding</span></div>
+  <div class="foot"><span>5 / 48</span><span>rate limiting vs. throttling vs. load shedding</span></div>
+</section>
+
+<section class="slide" data-section="real-throttling">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-valve"/></svg>Throttling in an async system</div>
+  <h2>A worker that slows itself down instead of rejecting</h2>
+  <div class="split">
+    <div class="chart meter">
+      <svg viewBox="0 0 640 290" role="img" aria-label="Kafka topic, worker, Redis limiter and SMS gateway">
+        <defs>
+          <marker id="arrow-thr" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" class="sv-ink"/></marker>
+        </defs>
+        <rect x="10" y="30" width="160" height="64" rx="10" class="sv-box"/>
+        <text x="90" y="58" text-anchor="middle" class="sv-lbl">Kafka topic</text>
+        <text x="90" y="78" text-anchor="middle" class="sv-lbl-sm">50,000 SMS jobs</text>
+        <path d="M170 62 H226" class="sv-line" marker-end="url(#arrow-thr)"/>
+        <text x="198" y="52" text-anchor="middle" class="sv-lbl-sm">poll</text>
+
+        <rect x="230" y="30" width="150" height="64" rx="10" class="sv-box-hot"/>
+        <text x="305" y="68" text-anchor="middle" class="sv-lbl">Worker</text>
+        <path d="M380 62 H466" class="sv-line" marker-end="url(#arrow-thr)"/>
+        <text x="423" y="52" text-anchor="middle" class="sv-lbl-sm">send</text>
+
+        <rect x="470" y="30" width="160" height="64" rx="10" class="sv-box"/>
+        <text x="550" y="58" text-anchor="middle" class="sv-lbl">SMS gateway</text>
+        <text x="550" y="78" text-anchor="middle" class="sv-hot">max 10 msg / s</text>
+
+        <path d="M280 94 V196" class="sv-line" marker-end="url(#arrow-thr)"/>
+        <text x="270" y="150" text-anchor="end" class="sv-lbl-sm">1 · get a token</text>
+        <path d="M330 200 V98" class="sv-line" marker-end="url(#arrow-thr)"/>
+        <text x="342" y="142" class="sv-lbl-sm">2 · ok → send</text>
+        <text x="342" y="160" class="sv-risk">or sleep 100 ms</text>
+
+        <rect x="230" y="200" width="150" height="64" rx="10" class="sv-box"/>
+        <text x="305" y="228" text-anchor="middle" class="sv-lbl">Redis limiter</text>
+        <text x="305" y="248" text-anchor="middle" class="sv-lbl-sm">10 tokens / s, shared</text>
+      </svg>
+    </div>
+    <ul class="points tight">
+      <li>The SMS provider accepts <b>10 messages per second</b>. The topic has <b>50,000</b> waiting.</li>
+      <li>Before each send, the worker asks the shared limiter for a token. No token → it <b>sleeps</b> and asks again.</li>
+      <li data-step="1">No message is dropped and nobody sees a <code>429</code>. The backlog drains at a steady 10/s and takes about 83 minutes.</li>
+      <li data-step="2">The limiter lives in Redis so that adding a second worker doesn't double the send rate.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>6 / 48</span><span>throttling · async worker</span></div>
 </section>
 
 <section class="slide" data-section="status-codes">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-log"/></svg>The vocabulary in HTTP</div>
-  <h2>Three status codes that get confused</h2>
+  <div class="eyebrow"><svg class="ic"><use href="#ic-log"/></svg>What the server sends back</div>
+  <h2>The status code tells the client whether to retry. The headers tell it when.</h2>
   <div class="split code-left">
-    <pre class="code"><span class="hl">429</span> Too Many Requests   <span class="c">// rate limit — client sent too much</span>
-<span class="hl">503</span> Service Unavailable <span class="c">// load shedding — server is overloaded</span>
-<span class="hl">403</span> Forbidden           <span class="c">// authorization — NOT rate limiting</span>
+    <pre class="code"><span class="hl">429</span> Too Many Requests   <span class="c"># you sent too much</span>
+<span class="hl">503</span> Service Unavailable <span class="c"># server is overloaded</span>
+<span class="hl">403</span> Forbidden           <span class="c"># not allowed at all</span>
 
-Retry-After: 30                <span class="c">// seconds to wait</span>
-X-RateLimit-Limit: 100         <span class="c">// the configured limit</span>
-X-RateLimit-Remaining: 0       <span class="c">// how much is left</span>
-X-RateLimit-Reset: 1704067320  <span class="c">// epoch time of the next reset</span></pre>
+HTTP/1.1 429 Too Many Requests
+Retry-After: 30                <span class="c"># seconds to wait</span>
+X-RateLimit-Limit: 100         <span class="c"># your limit</span>
+X-RateLimit-Remaining: 0       <span class="c"># left in this window</span>
+X-RateLimit-Reset: 1704067320  <span class="c"># unix time of reset</span></pre>
     <ul class="points tight">
-      <li><b>429</b> is the client's fault — they can fix it by slowing down.</li>
-      <li><b>503</b> is the server's problem — retrying won't necessarily help until it recovers.</li>
-      <li><b>403</b> means "no," permanently, regardless of rate — retrying is never the fix.</li>
+      <li><span class="chip hot">429</span> Slow down. Wait <code>Retry-After</code> seconds, then retry.</li>
+      <li><span class="chip hot">503</span> Not your fault. Retry with backoff; the server may need minutes to recover.</li>
+      <li><span class="chip risk">403</span> Don't retry. Waiting won't change the answer — fix the credentials or permissions.</li>
+      <li data-step="1">Send <code>X-RateLimit-Remaining</code> on <b>successful</b> responses too, so well-behaved clients can slow down before they ever get a <code>429</code>.</li>
     </ul>
   </div>
-  <div class="notes"><p>A surprising number of production incidents come from a client retrying a 403 as if it were a 429 — reading the code, not just the fact that something failed, matters.</p></div>
-  <div class="foot"><span>4 / 45</span><span>status codes &amp; headers</span></div>
+  <div class="foot"><span>7 / 48</span><span>status codes &amp; headers</span></div>
 </section>

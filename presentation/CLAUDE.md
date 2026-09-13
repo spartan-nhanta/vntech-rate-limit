@@ -8,7 +8,7 @@ Plain HTML/CSS/JS deck. No framework, no build step: every file in this folder i
 index.html          shell: <head>, SVG icon sprite (#ic-*), empty #deck, section loader
 css/deck.css        all styles; color tokens on :root, redefined for dark mode
 js/charts-lib.js    shared SVG helpers, exposed as window.Charts
-js/deck.js          presenter engine: keys, data-step reveals, notes, overview, theme
+js/deck.js          presenter engine: keys, data-step reveals, overview, theme
 sections/NN-*.html  slide content — one file per section, most edits happen here
 diagrams/*.html     interactive diagrams, embedded via <iframe>
 demo.html           standalone demo page, linked from sections/06-demo.html
@@ -33,18 +33,34 @@ Consequences:
   <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>Small line above the title</div>
   <h2>Slide title</h2>
   <!-- body: reuse existing layouts — split, card, points, tbl, code, chart, meter, stack -->
-  <div class="notes"><p>Speaker notes, shown with N.</p></div>
   <div class="foot"><span>12 / 45</span><span>section label</span></div>
 </section>
 ```
 
 - Section files open with a divider slide: `class="slide divider"`, with `divider-num`, `section-tag`, `h2`, `lead`. Copy one from an existing section.
-- Every slide has `.notes` and `.foot`. `deck.js` excludes both from the entrance stagger.
+- Every slide has a `.foot`; `deck.js` excludes it from the entrance stagger. The deck has no speaker notes: don't add `.notes` blocks.
 - **Footer page numbers (`12 / 45`) are hand-written.** Adding, removing or reordering slides means renumbering every later footer and the total on every slide. The HUD pager (bottom-right) is computed and needs no change.
 - Step reveals: `data-step="1"`, `"2"`, … hidden until the presenter advances; unmarked elements show on entry. Keep numbers consecutive from 1.
 - Animated numbers: `data-count="1000"` counts up when the slide becomes active (supported by `deck.js`, not used by any slide yet).
 - Icons come from the sprite in `index.html` (`#ic-gate`, `#ic-bucket`, `#ic-clock`, …). Add new symbols there, not inline in sections.
-- Slide copy is English. Match the tone of neighbouring slides.
+- Slide copy is English. Follow "Writing slide copy" below.
+
+## Writing slide copy
+
+The audience is mid-level backend and frontend engineers. `rate-limit-outline.md` (Vietnamese) is the source of truth for content and order; slides are its English version, not a free rewrite.
+
+- **Concrete over abstract.** Use numbers, names, and real systems: "100 requests / minute per user", "Kafka topic with 50,000 SMS jobs", "AWS API Gateway". Avoid lines like "the physics of control" or "a spectrum of trade-offs".
+- **Problem before definition.** Show what breaks without the thing, then name it. A slide should answer "why do I care?" before "what is it?".
+- **The `h2` is a claim, not a label.** Write "Count requests per client; reject the rest with 429", not "Rate limiting overview".
+- **Short, plain sentences.** One idea per bullet, 1–2 lines. Prefer "reject", "wait", "retry" over "mitigate", "leverage", "facilitate". No marketing tone, no em-dash chains.
+- **Say what to do.** When a slide explains a behavior, include the action for the engineer (e.g. "403 → don't retry, fix the credentials").
+- **Show it.** Prefer a small request log, code snippet, or SVG diagram over a paragraph. Use `data-step` to reveal the story in order (setup → failure → fix).
+
+| Avoid | Write |
+|---|---|
+| Rate limiting governs traffic flow across the system | Each user gets 100 requests per minute; request #101 gets a 429 |
+| Throttling introduces latency semantics | The worker sleeps until a token is free, so nothing is dropped |
+| A crucial consideration for resilience | If Redis is down, every pod lets all traffic through |
 
 ## Adding a section
 

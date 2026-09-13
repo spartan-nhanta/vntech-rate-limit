@@ -5213,16 +5213,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="530" y="154" class="t-muted" font-size="8.4" text-anchor="middle">in-process OR shared Redis</text>
         </g>
 
-        <g id="node-gate" data-node-id="gate" data-node-label="Circuit Gate" tabindex="0" role="button" aria-label="Focus Circuit Gate, closes on 429, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="closes on 429" data-node-context="Architecture component">
-          <title>Circuit Gate · closes on 429 · Architecture component</title>
+        <g id="node-gate" data-node-id="gate" data-node-label="Outbound Limiter" tabindex="0" role="button" aria-label="Focus Outbound Limiter, caps calls to vendor, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="caps calls to vendor" data-node-context="Architecture component">
+          <title>Outbound Limiter · caps calls to vendor · Architecture component</title>
           <rect x="670" y="260" width="130" height="60" rx="6" class="c-mask"/>
           <rect x="670" y="260" width="130" height="60" rx="6" class="c-security" data-animate="node" style="--step:4" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(676 266) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="735" y="288" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Circuit Gate</text>
-        <text data-detail="context" x="735" y="304" class="t-muted" font-size="9" text-anchor="middle">closes on 429</text>
+          <text data-node-label="" data-detail-anchor="" x="735" y="288" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Outbound Limiter</text>
+        <text data-detail="context" x="735" y="304" class="t-muted" font-size="9" text-anchor="middle">caps calls to vendor</text>
         </g>
 
         <g id="node-vendor" data-node-id="vendor" data-node-label="Third-Party API" tabindex="0" role="button" aria-label="Focus Third-Party API, has its own limit, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="has its own limit" data-node-context="Architecture component">
@@ -5471,23 +5471,33 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <div class="cards">
       <div class="card">
         <div class="card-header">
-          <div class="card-dot cyan"></div>
-          <h3>Inbound — protecting yourself</h3>
+          <div class="card-dot slate"></div>
+          <h3>1 · Client</h3>
         </div>
         <ul>
-          <li>&bull; Gateway enforcement is tidy but often skipped</li>
-          <li>&bull; The application enforces the limit either way, reading a store that may or may not be shared across replicas</li>
+          <li>&bull; Send fewer requests: debounce, batch, back off</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot rose"></div>
-          <h3>Outbound — being a good client</h3>
+          <div class="card-dot amber"></div>
+          <h3>2 · API Gateway</h3>
         </div>
         <ul>
-          <li>&bull; The circuit gate closes for every caller after one 429, not just the one that got rejected</li>
-          <li>&bull; The vendor&#39;s own limit is invisible except through its response headers</li>
+          <li>&bull; Per-IP / per-API-key limit before the backend</li>
+          <li>&bull; Optional: many systems skip it</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>3 · Backend</h3>
+        </div>
+        <ul>
+          <li>&bull; <b>Inbound</b>: limit requests coming in (per user, per endpoint) &rarr; 429</li>
+          <li>&bull; <b>Outbound</b>: limit calls the backend makes to a 3rd-party API &rarr; the vendor is protected, your quota is kept</li>
         </ul>
       </div>
     </div>

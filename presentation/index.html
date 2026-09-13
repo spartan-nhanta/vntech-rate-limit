@@ -63,7 +63,6 @@
 
 <div class="progress"><i></i></div>
 <div class="pager"></div>
-<div class="notes-panel" hidden></div>
 
 <script src="js/charts-lib.js"></script>
 <script>
@@ -84,7 +83,7 @@
   ];
   const deck = document.getElementById('deck');
   const htmls = await Promise.all(SECTIONS.map((n) =>
-    fetch(`sections/${n}.html`).then((r) => {
+    fetch(`sections/${n}.html`, { cache: 'no-cache' }).then((r) => {
       if (!r.ok) throw new Error(`sections/${n}.html: HTTP ${r.status}`);
       return r.text();
     })));
@@ -101,7 +100,8 @@
     document.body.appendChild(s);
   });
   const engine = document.createElement('script');
-  engine.src = 'js/deck.js';
+  // Cache-bust: without this, browsers keep running a stale deck.js after edits.
+  engine.src = `js/deck.js?v=${Date.now()}`;
   document.body.appendChild(engine);
 })().catch((err) => {
   const hint = location.protocol === 'file:'

@@ -12,7 +12,7 @@
 1. [Giới thiệu — Rate Limiting là gì và tại sao cần?](#1-giới-thiệu)
 2. [Implementation Layers — Chặn ở đâu?](#2-implementation-layers)
 3. [Distributed State — Redis, Atomicity, Lua](#3-distributed-state)
-4. [Algorithms — 6 thuật toán, mạnh yếu từng cái](#4-algorithms)
+4. [Algorithms — 5 thuật toán, mạnh yếu từng cái](#4-algorithms)
 5. [System Design — Thiết kế Rate Limiter phân tán](#5-system-design)
 6. [Demo — Bài toán thực tế](#6-demo)
 7. [Checkpoint Questions](#7-checkpoint-questions)
@@ -43,11 +43,19 @@ graph LR
 
 ### Phân biệt 3 khái niệm hay nhầm
 
-| Khái niệm | Hành vi khi vượt ngưỡng | Dùng ở đâu |
-|---|---|---|
-| **Rate Limiting** | Reject ngay — trả 429 | HTTP API server |
-| **Throttling** | Delay — giữ lại, xử lý sau | Async worker, Kafka consumer |
-| **Load Shedding** | Reject có chọn lọc khi system quá tải | Circuit breaker, infrastructure |
+Hỏi một câu: **request vượt ngưỡng bị làm gì?**
+
+| | Rate Limiting | Throttling | Load Shedding |
+|---|---|---|---|
+| **Request vượt ngưỡng** | Reject ngay · `429` | Delay · queue hoặc sleep | Drop · `503` |
+| **Quyết định dựa trên** | Counter theo key: user, API key, IP | Tốc độ downstream chịu được | Sức khỏe server: in-flight, CPU, p99 |
+| **Bảo vệ ai** | Các client khác (công bằng) | Downstream: DB, SMS gateway | Chính service |
+| **Thuật toán** | Token bucket, sliding window | Leaky bucket, blocking acquire | Concurrency limit, AIMD, priority |
+| **Client nên làm gì** | Chờ `Retry-After` rồi retry | Không cần làm gì, chỉ chờ | Retry với backoff + jitter |
+| **Gặp ở đâu** | API gateway, Kong, Stripe API | Kafka consumer, worker | Envoy, load balancer, gRPC server |
+
+- Rate limit chặn cả khi server đang rảnh (chỉ nhìn counter của 1 client). Load shedding chỉ chặn khi server gần quá tải, bất kể ai gửi. Cần cả hai.
+- Circuit breaker khác load shedding: circuit breaker là **bên gọi** ngừng gọi downstream đang lỗi; load shedding là **server** từ chối việc nó không làm kịp.
 
 > **Lưu ý thực tế:** AWS, Stripe, GitHub đều gọi là "rate limiting" dù thực ra là reject (429). Từ "throttling" bị dùng sai rộng rãi. Trong HTTP context: throttling = rate limiting = 429.
 
@@ -86,11 +94,17 @@ X-RateLimit-Reset: 1704067320 ← epoch khi nào reset
 **P2:** Rate limiting không chỉ sống ở một chỗ. Nó có thể — và nên — được áp dụng ở nhiều tầng cùng lúc, mỗi tầng chặn một loại threat khác nhau.
 
 ```mermaid
-graph TB
-    Client -->|Tầng 1: Client-side\ndebounce · flush · backoff| GW
-    GW[API Gateway / Nginx\nTầng 2: Infrastructure\nper-IP · DDoS · connection limit] -->|pass| App
-    App[Application / Middleware\nTầng 3: Business logic\nper-user · per-endpoint · VIP] -->|pass| DB[(Database)]
+graph LR
+    Client[Tầng 1: Client\ndebounce · batch · backoff] --> GW
+    GW[Tầng 2: API Gateway\nAWS WAF + Ingress controller\nper-IP · per-API-key] --> App
+    App[Tầng 3: Backend\ninbound: per-user · per-endpoint → 429] --> OL
+    OL[Backend outbound limiter\ncap calls to vendor] --> V[3rd-party API\ncó limit riêng]
 ```
+
+- **Client:** gửi ít request hơn.
+- **API Gateway:** limit theo IP / API key trước khi vào backend. Nhiều hệ thống bỏ qua tầng này.
+- **Backend inbound:** limit request đi vào backend (theo user, endpoint) → `429`.
+- **Backend outbound:** limit request backend gọi ra 3rd-party API. Vendor được bảo vệ, mình giữ được quota. Chỉ backend biết mình đang gọi vendor nào, gateway chỉ thấy traffic đi vào.
 
 ---
 
@@ -117,14 +131,16 @@ track("click", { button: "buy" })   // → 1 request
 track("scroll", { depth: 50 })      // → 1 request
 track("view", { page: "home" })     // → 1 request
 
-// Batch lại, flush mỗi 2 giây:
+// Batch lại, flush mỗi 5 giây:
 const queue = []
 setInterval(() => {
     if (queue.length > 0) {
         api.batchTrack(queue)        // → 1 request thay vì N
         queue.length = 0
     }
-}, 2000)
+}, 5000)
+
+// 10 events trong 10 giây → 2 request
 ```
 
 #### Exponential Backoff với Full Jitter
@@ -138,113 +154,102 @@ async function callWithRetry(fn, maxRetries = 5) {
         } catch (err) {
             if (err.status !== 429) throw err
 
+            // Retry-After từ server là mức chờ tối thiểu
+            const retryAfterMs = Number(err.headers["retry-after"] ?? 0) * 1000
             // Full jitter: tránh thundering herd
             const cap  = 30_000
             const base = 500
-            const wait = Math.random() * Math.min(cap, base * 2 ** i)
-            await sleep(wait)
+            const jitter = Math.random() * Math.min(cap, base * 2 ** i)
+            await sleep(retryAfterMs + jitter)
         }
     }
 }
 ```
 
-> **Tại sao full jitter?** 1000 client cùng nhận 429 → cùng retry sau đúng 1s → lại spike. Jitter phân tán retry theo thời gian.
+**Jitter** = phần ngẫu nhiên trong thời gian chờ.
+
+| Kiểu | Thời gian chờ (t = base·2ⁿ, có cap) |
+|---|---|
+| Không jitter | `t` |
+| Equal jitter — random một nửa | `t/2 + random(0, t/2)` |
+| Full jitter — random toàn bộ | `random(0, t)` |
+
+> **Tại sao cần jitter?** 1000 client cùng nhận 429 → cùng retry sau đúng 1s → lại spike. Jitter phân tán retry theo thời gian. Header chuẩn là `Retry-After` (RFC 9110), không phải `X-Retry-After`. Tuân theo `Retry-After` nguyên văn vẫn gây spike, nên cộng thêm jitter.
 
 ---
 
-### 2.2 Infrastructure — Nginx, API Gateway, Load Balancer
+### 2.2 Infrastructure — tầng API Gateway trên AWS EKS
 
-**P1:** Đây là tầng quan trọng nhất về mặt hiệu năng — chặn **trước khi request chạm vào application code**.
-
-#### Nginx — Reverse Proxy + Load Balancer
-
-Nginx không chỉ là web server. Nó là **reverse proxy** đứng trước toàn bộ hệ thống:
+**P1:** Tầng này chặn request **trước khi chạm vào application code**. Trên EKS, "API gateway" không phải một sản phẩm duy nhất: request đi qua nhiều chặng, và 3 chặng có thể reject.
 
 ```mermaid
 graph LR
-    C1[Client 1] --> N
-    C2[Client 2] --> N
-    C3[...10K clients] --> N
-
-    N[Nginx\nReverse Proxy]
-
-    N -->|upstream 1| B1[Backend Pod 1]
-    N -->|upstream 2| B2[Backend Pod 2]
-    N -->|upstream 3| B3[Backend Pod 3]
+    C[Client] --> WAF[CloudFront + AWS WAF\n① có thể reject]
+    WAF --> ALB[ALB\nkhông rate limit]
+    ALB --> IC[Ingress controller\nEnvoy Gateway · Kong\n② có thể reject]
+    IC --> App[App pod\nMicronaut filter\n③ có thể reject]
 ```
 
-**Tại sao Nginx xử lý được 10,000 connection đồng thời với 1 core?**
+| Chặng | Limit theo | Counter nằm ở | Vượt limit | Dùng cho |
+|---|---|---|---|---|
+| ① AWS WAF | IP, header, path | AWS, dùng chung ở edge | `403` mặc định, set thành `429` | Flood, bot: 2,000 req / 5 phút mỗi IP |
+| ALB | — | — | — | Chỉ routing và TLS |
+| ② Ingress controller | IP, route, header, API key | Mỗi pod controller, hoặc Redis | `429` | `/login`: 5 req/s mỗi IP |
+| ③ App | User, tier, endpoint | Redis | `429` + `Retry-After` | Free 100 / phút, Pro 1,000 / phút |
 
-Hầu hết web server truyền thống dùng **thread-per-connection** — 10K connection = 10K thread = tốn RAM, context switch chậm.
+- Ingress controller là chặng đầu tiên mình tự vận hành: một Deployment trong cluster, đứng trước mọi Service.
+- Dùng **AWS API Gateway** thay ALB? Nó có sẵn token bucket theo route và theo API key (usage plans), trả `429`. Quota mặc định của account: 10,000 req/s, burst 5,000 mỗi region. Usage plans chỉ có ở REST API, không có ở HTTP API.
 
-Nginx dùng **event-driven, non-blocking I/O**:
+#### Chặng ① — AWS WAF rate-based rule
 
-```mermaid
-graph TB
-    EL[Event Loop\n1 thread duy nhất]
+Chặn mọi IP gửi quá 2,000 request trong 5 phút:
 
-    EL -->|event: data ready| R1[Đọc request client A]
-    EL -->|event: upstream response| R2[Gửi response client B]
-    EL -->|event: new connection| R3[Accept client C]
-    EL -->|event: timeout| R4[Close idle connection]
-```
-
-- 1 worker process xử lý hàng nghìn connection **không block**
-- Khi chờ network I/O → worker làm việc khác, không ngồi chờ
-- Giống Node.js event loop, nhưng ở C và nhanh hơn nhiều
-
-#### Nginx Rate Limiting
-
-```nginx
-# Khai báo zone: theo IP, 10MB RAM, 10 req/s
-limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-
-server {
-    location /api/ {
-        limit_req zone=api burst=20 nodelay;
-        # burst=20  : hàng đợi tối đa 20 req vượt rate
-        # nodelay   : không delay — reject ngay nếu vượt burst
-        proxy_pass http://backend;
+```hcl
+# aws_wafv2_web_acl, gắn vào CloudFront hoặc ALB
+rule {
+  name     = "per-ip-2000-per-5min"
+  priority = 1
+  statement {
+    rate_based_statement {
+      limit                 = 2000
+      evaluation_window_sec = 300
+      aggregate_key_type    = "IP"
     }
+  }
+  action {
+    block {
+      custom_response { response_code = 429 }
+    }
+  }
+  # visibility_config bắt buộc, lược bỏ cho gọn
 }
 ```
 
-Nginx dùng **Leaky Bucket** internally — đó là lý do có `burst` parameter (= queue size).
+- Flood bị chặn ở edge của AWS, không mở connection tới ALB, ingress hay pod.
+- Window chỉ có 1, 2, 5 hoặc 10 phút. Hợp với flood, dò mật khẩu. Quá thô cho "10 req/s".
+- Key có thể là IP, IP trong `X-Forwarded-For`, header như `x-api-key`, path, hoặc kết hợp.
+- Mặc định block trả `403`. Set `429` để client biết mà back off, không tưởng là lỗi auth.
 
-#### Load Balancing Algorithms
+> Counter là xấp xỉ, phản ứng trễ vài chục giây — không dùng WAF cho quota chính xác. Đứng sau CloudFront thì ALB chỉ thấy IP của CloudFront, nên gắn WAF ở CloudFront hoặc key theo forwarded IP. Limit tối thiểu là 10 request / window. AWS Shield Standard (miễn phí) đã lo flood L3/L4; WAF dành cho HTTP flood.
 
-```nginx
-upstream backend {
-    # Round Robin (default)
-    server backend1:8080;
-    server backend2:8080;
+#### Chặng ② — Ingress controller dùng thuật toán gì?
 
-    # Least Connections — gửi đến pod ít connection nhất
-    least_conn;
+Tùy counter nằm ở đâu:
 
-    # IP Hash — cùng IP → cùng backend (session sticky)
-    ip_hash;
+| Controller · setting | Thuật toán | Counter nằm ở | Khi có burst |
+|---|---|---|---|
+| Envoy Gateway · `rateLimit.type: Local` | **Token bucket** | RAM của từng pod Envoy | Bucket 10 token, nạp lại mỗi giây. 10 request qua ngay, request thứ 11 nhận `429` |
+| Envoy Gateway · `rateLimit.type: Global` | **Fixed window** | Redis, qua ratelimit service của Envoy | Counter reset mỗi `unit`. Có thể lọt 2× limit ở ranh giới window |
+| Kong · `rate-limiting` | **Fixed window** | RAM pod, Postgres hoặc Redis (`policy`) | Cũng lọt 2× ở ranh giới. Nhiều window cùng lúc: `second`, `minute`, `hour` |
+| Kong Enterprise · `rate-limiting-advanced` | **Sliding window** | Redis | Tính cả window trước, không lọt 2× |
 
-    # Weighted
-    server backend1:8080 weight=3;  # nhận 3× traffic
-    server backend2:8080 weight=1;
-}
-```
+- **Local:** không tốn network hop, nhưng mỗi pod đếm riêng. 3 replica controller → cho qua tới 3× limit.
+- **Global:** mọi replica đếm chung, đổi lại mỗi request tốn 1 lần gọi Redis. Section 3.1 giải thích vì sao counter phải dùng chung.
+- **Gotcha:** sau ALB phải key theo IP thật của client trong `X-Forwarded-For`. Nếu không, mọi user mang IP của ALB và dùng chung một bucket. (Envoy Gateway: `ClientTrafficPolicy` → `clientIPDetection.xForwardedFor.numTrustedHops: 1`.)
 
-#### Kong / Envoy
+> Redis sập thì cả global limiter của Envoy lẫn Kong (`fault_tolerant: true`) mặc định vẫn cho traffic đi qua — cần quyết định có chấp nhận điều đó không. Envoy Gateway implement Kubernetes Gateway API, bản kế nhiệm của Ingress.
 
-```yaml
-# Kong plugin — không cần viết code
-plugins:
-  - name: rate-limiting
-    config:
-      minute: 1000
-      hour: 10000
-      policy: redis       # share state giữa Kong nodes
-      redis_host: redis
-```
-
-Kong và Envoy xử lý rate limiting **tập trung** — mọi service dùng chung config, không cần implement riêng.
+Infrastructure rate limit vẫn thô: ingress biết IP, route, header, nhưng không biết user đang dùng gói nào.
 
 ---
 
@@ -317,7 +322,9 @@ Mỗi pod có counter riêng → tổng thực là 97, nhưng mỗi pod nghĩ m�
 
 ---
 
-### 3.2 Race Condition — Read-then-Write
+### 3.2 Race Condition và fix bằng Lua Script
+
+**Race:** GET và SET là 2 round trip riêng, pod khác chen vào giữa được.
 
 ```mermaid
 sequenceDiagram
@@ -332,30 +339,13 @@ sequenceDiagram
     B->>R: SET tokens = 0 ✅ cho qua (LẼ RA 429!)
 ```
 
-Hai pod đọc cùng lúc → cùng thấy tokens=1 → cả hai ghi đè → **mất 1 lần count**.
+Hai pod đọc cùng lúc → cùng thấy tokens=1 → cả hai ghi đè → **lọt 1 request**.
 
----
-
-### 3.3 Giải pháp: Lua Script — Atomic Execution
-
-Redis là **single-threaded**. Lua script chạy là không ai chen vào:
-
-```mermaid
-sequenceDiagram
-    participant A as Pod A (Lua)
-    participant R as Redis
-    participant B as Pod B (Lua)
-
-    A->>R: EVALSHA script (GET + SET)
-    Note over R: Đang chạy Lua A — B phải chờ
-    R-->>A: tokens=1, cho qua. tokens→0
-    B->>R: EVALSHA script (GET + SET)
-    R-->>B: tokens=0, từ chối → 429
-```
+**Fix:** Redis chạy command trên một thread. Gộp đọc + quyết định + ghi vào một Lua script → không ai chen vào giữa. Pod B phải chờ script của Pod A chạy xong, đọc `0`, trả `429`.
 
 ```lua
 -- Toàn bộ block này là atomic — không ai chen được
-local tokens = tonumber(redis.call('GET', KEYS[1])) or CAPACITY
+local tokens = tonumber(redis.call('GET', KEYS[1])) or tonumber(ARGV[1])  -- capacity
 if tokens >= 1 then
     redis.call('SET', KEYS[1], tokens - 1)
     return 1   -- allowed
@@ -364,9 +354,11 @@ else
 end
 ```
 
+> Cùng vấn đề với `INCR` + `EXPIRE`: crash giữa 2 lệnh → key không có TTL → user bị chặn mãi mãi. Đưa cả hai vào script.
+
 ---
 
-### 3.4 Redis Cluster và Hash Tag
+### 3.3 Redis Cluster và Hash Tag
 
 Trong Redis Cluster, Lua script **chỉ chạy được trên 1 node**. Nếu 2 key nằm trên 2 node khác nhau → `CROSSSLOT error`.
 
@@ -380,26 +372,6 @@ rl:user_456:curr  → node B  ← CROSSSLOT!
 # Có hash tag → Redis chỉ hash phần trong {}
 rl:{user_456}:prev  → hash "user_456" → node B
 rl:{user_456}:curr  → hash "user_456" → node B ✅
-```
-
----
-
-### 3.5 Precision vs Performance
-
-| Approach | Latency | Precision | Scale |
-|---|---|---|---|
-| Lua Script (strong consistency) | 1–4ms (Redis round-trip) | 100% chính xác | ~100k req/s/node |
-| Local cache + async sync 100ms | ~0ms (in-memory) | Có thể vượt ~10–30% tạm thời | Triệu req/s |
-| Approximate (probabilistic) | 0ms | Thấp | Vô hạn |
-
-**Local cache pattern:**
-
-```
-Mỗi pod giữ counter riêng trong memory
-Mỗi 100ms → gửi batch update lên Redis
-
-Worst case: 3 pod chưa sync → có thể vượt 3× limit trong 100ms window
-→ Chấp nhận được cho feed/social, không chấp nhận cho billing
 ```
 
 ---
@@ -462,34 +434,58 @@ Thực tế: 198 request trong 2 giây 💀
 
 ### 4.2 Sliding Window Log
 
-**Cơ chế:** Lưu timestamp của từng request trong Redis Sorted Set.
+**Cơ chế:** Lưu timestamp của từng request được cho qua trong Redis Sorted Set. **Danh sách timestamp đó chính là LOG — lý do của cái tên.** Request bị reject không ghi vào log.
 
 ```
-ZREMRANGEBYSCORE key -inf (now-60s)  → xóa request cũ
+ZREMRANGEBYSCORE key -inf (now-10s)  → xóa entry cũ hơn window
 ZCARD key                             → đếm còn lại
-ZADD key now now                      → ghi timestamp mới
+ZADD key now now                      → ghi timestamp mới (chỉ khi cho qua)
 ```
 
-```mermaid
-sequenceDiagram
-    participant R as Request T=61s
-    participant Redis
+**Traffic bình thường** — limit 10 request / 10 s:
 
-    R->>Redis: ZREMRANGEBYSCORE -inf 1s (xóa request trước 1s)
-    Redis-->>R: đã xóa 3 entries cũ
-    R->>Redis: ZCARD → 97
-    R->>Redis: 97 < 100 → ZADD 61000 61000
-    Redis-->>R: ✅ allowed
+| Request | timestamp | status |
+|---|---|---|
+| #1 | 00:01 | Pass |
+| #2 … #10 | 00:04 | Pass |
+| #11 | 00:07 | **429** — đã có 10 trong window |
+| #12 | 00:13 | Pass — window 00:03–00:13, #1 đã ra khỏi window, còn 9 |
+
+**Burst tại biên 00:10** — cùng limit:
+
+| Request | timestamp | status |
+|---|---|---|
+| #1 | 00:01 | Pass |
+| #2 … #9 | 00:09 | Pass |
+| #10 … #14 | 00:12 | #10, #11 Pass · #12, #13, #14 **429** |
+
+```
+window_start = timestamp − window_length = 12 − 10 = 00:02
+đếm từ 00:02 tới 00:12: #2 … #9 = 8 → còn 2 slot → #10, #11 qua, #12–#14 bị chặn
 ```
 
-**Điểm mạnh:** Chính xác tuyệt đối, không có boundary spike  
-**Điểm yếu:** O(N) memory — 1 user × 100 req/phút = 100 entry trong Redis. 1M user = 100M entry
+Fixed window reset counter ở 00:10 nên cho cả 5 request qua. Sliding log không bám theo đồng hồ nên không có biên để lợi dụng.
+
+#### Cái giá: bộ nhớ (slide riêng)
+
+Mỗi request được cho qua nằm trong Redis suốt window → **bộ nhớ = traffic × window**. Mỗi entry sorted set ~100 bytes (score + member unique như timestamp + request ID + skiplist node + hash entry; set dưới 128 entry dùng listpack ~20–30 bytes).
+
+| Window | Entry ở 100,000 req/s | Redis memory |
+|---|---|---|
+| 10 s | 1M | 0.1 GB |
+| 1 phút | 6M | 0.6 GB |
+| 1 giờ | 360M | 36 GB |
+| 1 ngày | 8.64B | 864 GB |
+
+Fixed window chỉ lưu **1 counter** mỗi key, bất kể traffic. Chỉ dùng sliding log khi cần đếm chính xác đáng giá RAM, ví dụ billing.
 
 ---
 
 ### 4.3 Sliding Window Counter
 
 **Cơ chế:** Hybrid — chỉ lưu 2 counter, ước lượng bằng trọng số.
+
+> **Thỏa hiệp giữa bộ nhớ và điều kiện biên:** chỉ 2 counter mỗi key như fixed window, nhưng không dồn 2× limit vào vài giây quanh ranh giới window như fixed window.
 
 ```
 estimate = prev_count × weight + curr_count
@@ -574,8 +570,24 @@ graph TB
     Q -->|"Queue đầy\n→ 429"| REJ[Reject]
 ```
 
-**Điểm mạnh:** Output rate cố định, bảo vệ downstream  
-**Điểm yếu:** Counter-based không smooth thật sự (vẫn có thể burst nếu queue chưa đầy). Smooth thật cần FIFO queue (Kafka worker)
+**Hình dung:** một bồn nước. Vòi trên là request đi vào, tốc độ bất kỳ, có burst. Lỗ dưới đáy là request đi ra, **tốc độ cố định**. Mực nước là số request đang chờ.
+
+**Use case:** rate limit ở tầng Application **trước khi đẩy request xuống 3rd-party**. User gửi 50 SMS trong 1 giây, SMS gateway chỉ nhận 10 msg/s → bucket giữ burst và xả đều 10/s. Vendor không bao giờ thấy spike, nên không trả `429` cho mình.
+
+**Bồn đầy → reject ngay, không xếp hàng ngoài bồn** (capacity 20, xả 10/s):
+
+| Thời điểm | Chuyện gì xảy ra | Bồn |
+|---|---|---|
+| 0.0 s | 30 request tới, #1–#20 vào bồn | 20 / 20 |
+| 0.0 s | #21–#30 bị `429` ngay lập tức | 20 / 20 |
+| 1.0 s | Đã xả 10 request sang vendor | 10 / 20 |
+| 1.0 s | Request mới được nhận | 11 / 20 |
+
+- `capacity` là chỗ chờ duy nhất. Request bị reject nhận `429` + `Retry-After: 1`.
+- Chọn capacity theo độ trễ chấp nhận được: `capacity = leak_rate × thời gian chờ tối đa`. Capacity 20, xả 10/s → request cuối chờ tối đa 2 s.
+
+**Điểm mạnh:** Output rate cố định, bảo vệ downstream.  
+**Điểm yếu:** Request phía sau phải chờ; burst lớn hơn capacity bị reject.
 
 ---
 
@@ -589,7 +601,6 @@ graph TB
 | Token Bucket | O(1) | ✅ | ✅ | ✅ | **Default tốt nhất** |
 | Leaky Bucket | O(1) | ✅ | ❌ | ✅ | Bảo vệ downstream |
 
-> **Footnote — GCRA (Generic Cell Rate Algorithm):** Tương đương toán học với Token Bucket nhưng chỉ lưu 1 giá trị `tat` (Theoretical Arrival Time) trong Redis thay vì 2 giá trị `{tokens, ts}`. Dùng trong `redis-cell` module. Không phổ biến trong application code thông thường — Token Bucket đủ dùng và dễ hiểu hơn.
 
 ---
 
@@ -623,7 +634,7 @@ graph TB
     end
 
     subgraph Infrastructure
-        LB[Nginx\nper-IP limit\n10K conn/s]
+        LB[Ingress controller\nper-IP limit]
     end
 
     subgraph Application
@@ -633,7 +644,7 @@ graph TB
     end
 
     subgraph RateLimit["Rate Limit Layer"]
-        RL[Rate Limit Service\nToken Bucket + GCRA]
+        RL[Rate Limit Service\nToken Bucket]
         RC1[(Redis Cluster\nShard A)]
         RC2[(Redis Cluster\nShard B)]
         RC3[(Redis Cluster\nShard C)]
@@ -963,7 +974,6 @@ Cả Admin và Client đều subscribe `GET /events` — cùng xem log của t�
 | Sliding Window | Cửa sổ trượt, chính xác hơn, tốn hơn |
 | Token Bucket | Tích token khi idle, tiêu khi dùng — cho phép burst |
 | Leaky Bucket | Queue với trần — output rate cố định |
-| GCRA | Token Bucket toán học tương đương, lưu 1 giá trị `tat` — dùng trong redis-cell |
 | Distributed Counting | Redis + Lua = atomic counter chia sẻ giữa nhiều pod |
 | Hash Tag `{}` | Đảm bảo các key liên quan vào cùng 1 Redis node |
 | Backpressure | Downstream báo upstream chậm lại (429 + Retry-After) |

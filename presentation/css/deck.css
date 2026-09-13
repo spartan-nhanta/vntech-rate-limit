@@ -131,7 +131,6 @@ body {
   opacity: 1; visibility: visible; pointer-events: auto; transform: none;
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
-.notes { display: none; }
 
 /* ---------- type ---------- */
 /* The section name is the real title; the line under it is only a descriptor. */
@@ -189,6 +188,7 @@ code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-al
 .card .t { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; line-height: 1.2; font-family: var(--head); }
 .card p { margin: 0; font-size: 16.5px; line-height: 1.5; color: var(--body); }
 .card .code { margin-top: auto; font-size: 13.5px; padding: 12px 14px; }
+.card .mini { display: block; width: 100%; height: auto; margin-top: auto; overflow: visible; }
 
 .points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .points li { padding: 13px 0; border-top: 1px solid var(--hairline-soft); font-size: 18px; line-height: 1.45; color: var(--body); }
@@ -221,6 +221,10 @@ code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-al
 .tbl td.name span { display: block; font-weight: 400; font-size: 12.5px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
 .tbl .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tbl .mono { font-size: 14px; }
+.tbl.dense { font-size: 15.5px; }
+.tbl.dense th { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink); }
+.tbl.dense td { padding: 10px 14px; }
+.tbl.dense td.name { width: 17%; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--muted); }
 
 /* ---------- meter frame for diagrams ---------- */
 .meter {
@@ -267,6 +271,8 @@ svg text { font-family: var(--sans); }
 .sv-limit { stroke: var(--reject); stroke-width: 1.5; stroke-dasharray: 6 5; }
 .sv-box { fill: var(--surface); stroke: var(--hairline); }
 .sv-box-hot { fill: var(--accent-wash); stroke: var(--accent); }
+.sv-box-risk { fill: var(--reject-wash); stroke: var(--reject); }
+.sv-risk { fill: var(--reject); font-family: var(--mono); font-size: 13px; font-weight: 600; }
 .sv-dash { fill: none; stroke: var(--muted-soft); stroke-dasharray: 6 5; }
 .sv-line { stroke: var(--ink); stroke-width: 1.5; fill: none; }
 .sv-line-soft { stroke: var(--muted-soft); stroke-width: 1.5; fill: none; }
@@ -310,6 +316,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-stro
 .section-tag i { display: block; width: 28px; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 .divider h2 { font-size: 56px; max-width: 16ch; }
 .divider .lead { font-size: 23px; max-width: 44ch; }
+.lead p { margin: 0; }
+.lead-list { margin: 6px 0 0; padding-left: 1.2em; }
+.lead-list li { padding-left: 4px; }
+.lead-list li::marker { color: var(--accent); }
+.lead-list b { font-weight: 700; }
 
 /* ---------- cover ---------- */
 .cover-grid { flex: 1; display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; align-items: center; }
@@ -326,25 +337,17 @@ svg [data-step] { transform: none; }
 [data-step].shown { opacity: 1; transform: none; }
 
 /* ---------- entrance stagger: a slide's own top-level children cascade in ---------- */
-.slide > *:not(.notes):not(.foot) {
+.slide > *:not(.foot) {
   opacity: 0; transform: translateY(16px);
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
-.slide.active > *:not(.notes):not(.foot) { opacity: 1; transform: none; }
-body.overview .slide > *:not(.notes):not(.foot) { opacity: 1; transform: none; transition: none; }
+.slide.active > *:not(.foot) { opacity: 1; transform: none; }
+body.overview .slide > *:not(.foot) { opacity: 1; transform: none; transition: none; }
 
 /* ---------- hud ---------- */
 .progress { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: var(--hairline-soft); }
 .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s ease; }
 .pager { position: fixed; right: 20px; bottom: 12px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.notes-panel {
-  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
-  width: min(760px, calc(100vw - 48px)); max-height: 40vh; overflow: auto; box-sizing: border-box;
-  padding: 18px 24px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow);
-  font-size: 15.5px; line-height: 1.6; color: var(--body);
-}
-.notes-panel h3 { margin: 0 0 6px; font-family: var(--mono); font-size: 12.5px; font-weight: 500; color: var(--muted); }
-.notes-panel p { margin: 0 0 8px; }
 
 /* ---------- overview (O) ---------- */
 body.overview { overflow: auto; }
@@ -375,6 +378,6 @@ body.overview .progress, body.overview .pager { display: none; }
     opacity: 1; visibility: visible; transform: none; break-after: page;
   }
   [data-step] { opacity: 1; transform: none; }
-  .slide > *:not(.notes):not(.foot) { opacity: 1; transform: none; transition: none; }
-  .progress, .pager, .notes-panel { display: none; }
+  .slide > *:not(.foot) { opacity: 1; transform: none; transition: none; }
+  .progress, .pager { display: none; }
 }

@@ -4,8 +4,7 @@
   <div class="section-tag"><i></i>SECTION 2</div>
   <h2>Implementation layers</h2>
   <p class="lead">Rate limiting isn't one place — it belongs at several layers at once, each stopping a different class of problem.</p>
-  <div class="notes"><p>Client-side (don't send the waste), infrastructure (stop it before application code), application (the only layer with business context).</p></div>
-  <div class="foot"><span>5 / 45</span><span>act ii · implementation layers</span></div>
+  <div class="foot"><span>8 / 48</span><span>act ii · implementation layers</span></div>
 </section>
 
 <section class="slide" data-section="topology">
@@ -20,8 +19,7 @@
       <a href="diagrams/request-topology.html" target="_blank" rel="noopener">Open full screen ↗</a>
     </div>
   </div>
-  <div class="notes"><p>A dedicated gateway (Kong, Envoy, an API-manager tier) is the tidiest place to enforce inbound limits, but plenty of real systems skip it and enforce entirely in application code instead.</p></div>
-  <div class="foot"><span>6 / 45</span><span>architecture</span></div>
+  <div class="foot"><span>9 / 48</span><span>architecture</span></div>
 </section>
 
 <section class="slide" data-section="client-side">
@@ -31,47 +29,95 @@
     <div class="card lift">
       <svg class="ic"><use href="#ic-clock"/></svg>
       <div class="k">Debounce</div>
-      <div class="t">Collapse rapid-fire input</div>
-      <pre class="code">// typing "rate" fires 4 keystrokes
-const search = debounce(q =&gt;
-  api.search(q), 300)
-// only the last one, after 300ms
-// of silence, calls the API</pre>
+      <div class="t">Call search when the user stops typing</div>
+      <p>Only the last keystroke, after 300 ms of silence, hits <code>/search</code>.</p>
+      <svg class="mini" viewBox="0 0 300 186" role="img" aria-label="Search box: typing rate sends one request after 300 ms of silence">
+        <rect x="0" y="0" width="208" height="38" rx="8" class="sv-box"/>
+        <text x="14" y="24" class="sv-lbl">rate</text>
+        <path d="M49 11 V27" class="sv-line"/>
+        <rect x="216" y="0" width="84" height="38" rx="8" class="sv-box-hot"/>
+        <text x="258" y="24" text-anchor="middle" class="sv-hot">Search</text>
+
+        <path d="M0 112 H300" class="sv-line-soft"/>
+        <rect x="9" y="78" width="22" height="22" rx="4" class="sv-box"/><text x="20" y="94" text-anchor="middle" class="sv-lbl-sm">r</text>
+        <rect x="39" y="78" width="22" height="22" rx="4" class="sv-box"/><text x="50" y="94" text-anchor="middle" class="sv-lbl-sm">a</text>
+        <rect x="69" y="78" width="22" height="22" rx="4" class="sv-box"/><text x="80" y="94" text-anchor="middle" class="sv-lbl-sm">t</text>
+        <rect x="99" y="78" width="22" height="22" rx="4" class="sv-box"/><text x="110" y="94" text-anchor="middle" class="sv-lbl-sm">e</text>
+        <path d="M121 124 H224" class="sv-dash"/>
+        <text x="172" y="142" text-anchor="middle" class="sv-lbl-sm">300 ms quiet</text>
+        <rect x="228" y="78" width="72" height="22" rx="4" class="sv-box-hot"/>
+        <text x="264" y="94" text-anchor="middle" class="sv-hot">1 call</text>
+        <text x="0" y="178" class="sv-lbl-sm">4 keystrokes → 1 request</text>
+      </svg>
     </div>
     <div class="card lift">
       <svg class="ic"><use href="#ic-log"/></svg>
       <div class="k">Batching</div>
-      <div class="t">Flush on an interval, not per event</div>
-      <pre class="code">const queue = []
-setInterval(() =&gt; {
-  if (queue.length) {
-api.batchTrack(queue) // 1 call
-queue.length = 0      // not N
-  }
-}, 2000)</pre>
+      <div class="t">Buffer analytics events, flush every 5 s</div>
+      <p>Don't send one request per click or page view. Send the buffer as one POST.</p>
+      <svg class="mini" viewBox="0 0 300 186" role="img" aria-label="Ten analytics events flushed as two requests, one every 5 seconds">
+        <text x="0" y="12" class="sv-lbl-sm">click · view · scroll …</text>
+        <rect x="0" y="26" width="145" height="30" rx="6" class="sv-carry"/>
+        <rect x="155" y="26" width="145" height="30" rx="6" class="sv-carry"/>
+        <circle cx="16" cy="41" r="5" class="sv-mark"/><circle cx="38" cy="41" r="5" class="sv-mark"/><circle cx="72" cy="41" r="5" class="sv-mark"/><circle cx="96" cy="41" r="5" class="sv-mark"/><circle cx="128" cy="41" r="5" class="sv-mark"/>
+        <circle cx="170" cy="41" r="5" class="sv-mark"/><circle cx="194" cy="41" r="5" class="sv-mark"/><circle cx="232" cy="41" r="5" class="sv-mark"/><circle cx="258" cy="41" r="5" class="sv-mark"/><circle cx="284" cy="41" r="5" class="sv-mark"/>
+        <text x="0" y="76" class="sv-tick">0 s</text>
+        <text x="150" y="76" text-anchor="middle" class="sv-tick">5 s</text>
+        <text x="300" y="76" text-anchor="end" class="sv-tick">10 s</text>
+        <path d="M72 56 V104" class="sv-line"/>
+        <path d="M228 56 V104" class="sv-line"/>
+        <rect x="8" y="106" width="130" height="30" rx="6" class="sv-box-hot"/>
+        <text x="73" y="126" text-anchor="middle" class="sv-hot">POST 5 events</text>
+        <rect x="163" y="106" width="130" height="30" rx="6" class="sv-box-hot"/>
+        <text x="228" y="126" text-anchor="middle" class="sv-hot">POST 5 events</text>
+        <text x="0" y="178" class="sv-lbl-sm">10 events → 2 requests</text>
+      </svg>
     </div>
     <div class="card lift">
       <svg class="ic"><use href="#ic-die"/></svg>
       <div class="k">Backoff + full jitter</div>
-      <div class="t">On a 429, don't retry on the beat</div>
-      <pre class="code">const wait = Math.random() *
-  Math.min(cap, base * 2 ** i)
-await sleep(wait)
-// next 3 slides: why</pre>
+      <div class="t">On 429, wait Retry-After plus a random delay</div>
+      <p>Never retry earlier than the server asks. The random part spreads clients apart.</p>
+      <svg class="mini" viewBox="0 0 300 186" role="img" aria-label="Two 429 responses with Retry-After 2, each followed by a random jitter window, then a 200">
+        <rect x="0" y="0" width="300" height="34" rx="8" class="sv-box-risk"/>
+        <text x="12" y="22" class="sv-risk">429 · Retry-After: 2</text>
+
+        <rect x="10" y="101" width="50" height="13" class="sv-band-hot"/>
+        <rect x="60" y="101" width="50" height="13" class="sv-carry"/>
+        <rect x="87" y="126" width="50" height="13" class="sv-band-hot"/>
+        <rect x="137" y="126" width="100" height="13" class="sv-carry"/>
+        <path d="M0 120 H300" class="sv-line-soft"/>
+        <circle cx="10" cy="120" r="6" class="sv-box-risk"/>
+        <circle cx="87" cy="120" r="6" class="sv-box-risk"/>
+        <circle cx="195" cy="120" r="6" class="sv-box-hot"/>
+        <text x="10" y="90" text-anchor="middle" class="sv-risk">429</text>
+        <text x="87" y="90" text-anchor="middle" class="sv-risk">429</text>
+        <text x="195" y="90" text-anchor="middle" class="sv-hot">200</text>
+        <text x="10" y="66" text-anchor="middle" class="sv-lbl-sm">try 1</text>
+        <text x="87" y="66" text-anchor="middle" class="sv-lbl-sm">try 2</text>
+        <text x="195" y="66" text-anchor="middle" class="sv-lbl-sm">try 3</text>
+
+        <rect x="0" y="148" width="16" height="10" class="sv-band-hot"/>
+        <text x="22" y="157" class="sv-lbl-sm">Retry-After from server</text>
+        <rect x="0" y="170" width="16" height="10" class="sv-carry"/>
+        <text x="22" y="179" class="sv-lbl-sm">random jitter, doubles each try</text>
+      </svg>
     </div>
   </div>
-  <div class="notes"><p>None of these three protect the server directly — they exist so the client never sends the request that would have needed protecting against in the first place.</p></div>
-  <div class="foot"><span>7 / 45</span><span>client-side · debounce, batch, backoff</span></div>
+  <div class="foot"><span>10 / 48</span><span>client-side · debounce, batch, backoff</span></div>
 </section>
 
 <section class="slide" data-section="herd">
   <div class="eyebrow"><svg class="ic"><use href="#ic-die"/></svg>Why jitter matters</div>
   <h2>1,000 clients, no jitter, waking in unison</h2>
   <div class="body">
-    <div class="seg" id="herd-seg" role="group" aria-label="Backoff mode">
-      <button data-mode="none" aria-pressed="true">No jitter</button>
-      <button data-mode="equal">Equal jitter</button>
-      <button data-mode="full">Full jitter</button>
+    <div style="display:flex; align-items:center; gap:22px;">
+      <div class="seg" id="herd-seg" role="group" aria-label="Backoff mode" style="flex-shrink:0;">
+        <button data-mode="none" aria-pressed="true">No jitter</button>
+        <button data-mode="equal">Equal jitter</button>
+        <button data-mode="full">Full jitter</button>
+      </div>
+      <p class="readout" style="margin:0;"><b style="font-size:inherit; font-family:inherit; font-weight:600;">Jitter</b> = a random part of the wait. Equal: half random, <code>t/2 + random(0, t/2)</code>. Full: all random, <code>random(0, t)</code>.</p>
     </div>
     <div class="chart meter">
       <svg id="herd"></svg>
@@ -79,30 +125,7 @@ await sleep(wait)
     </div>
     <p class="readout" id="herd-readout"></p>
   </div>
-  <div class="notes"><p>Exponential backoff only spaces the retries further apart over time — it never makes concurrent clients diverge from each other. Jitter is the only ingredient that does that. Full jitter produces the lowest total load; equal jitter guarantees at least half the base delay.</p></div>
-  <div class="foot"><span>8 / 45</span><span>jitter · simulated, per AWS's "Exponential Backoff and Jitter"</span></div>
-</section>
-
-<section class="slide" data-section="jitter-formulas">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-die"/></svg>Three jitter formulas</div>
-  <h2>Equal jitter is the common middle ground</h2>
-  <div class="split even">
-    <table class="tbl">
-      <thead><tr><th>Style</th><th>Wait time</th></tr></thead>
-      <tbody>
-        <tr><td class="name">Full jitter</td><td class="mono">random(0, min(cap, base·2ⁿ))</td></tr>
-        <tr><td class="name">Equal jitter</td><td class="mono">t/2 + random(0, t/2)</td></tr>
-        <tr><td class="name">Decorrelated</td><td class="mono">min(cap, random(base, prev·3))</td></tr>
-      </tbody>
-    </table>
-    <div class="stack">
-      <pre class="code">base = min(previousDelay * multiplier, maxDelay)
-<span class="hl">return random(base / 2, base + 1)</span></pre>
-      <p class="lead" style="font-size:16.5px;" data-step="1"><b>One catch:</b> if the next attempt's base is computed from the previous <em>jittered</em> delay rather than the original, each retry only grows by roughly <b>1.5×</b> on average, not the intended 2×.</p>
-    </div>
-  </div>
-  <div class="notes"><p>Full jitter produces the lowest aggregate load, per AWS's own writeup. Decorrelated jitter is attractive because it needs no retry counter at all — only the previous wait.</p></div>
-  <div class="foot"><span>9 / 45</span><span>jitter formulas</span></div>
+  <div class="foot"><span>11 / 48</span><span>jitter · simulated, per AWS's "Exponential Backoff and Jitter"</span></div>
 </section>
 
 <section class="slide" data-section="retry-after">
@@ -119,53 +142,114 @@ await sleep(wait)
     </div>
     <p class="readout" id="ra-readout"></p>
   </div>
-  <div class="notes"><p>The header tells every client the same number, so obeying it literally recreates the herd it was meant to prevent. Adding a small jitter on top — retryAfter + random(0, 20%) — is the cheapest fix.</p></div>
-  <div class="foot"><span>10 / 45</span><span>Retry-After · jitter</span></div>
+  <div class="foot"><span>12 / 48</span><span>Retry-After · jitter</span></div>
 </section>
 
-<section class="slide" data-section="nginx-eventloop">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>2.2 · Infrastructure</div>
-  <h2>One thread, ten thousand connections</h2>
-  <div class="split">
-    <div class="stack">
-      <p class="lead" style="font-size:19px;">Nginx isn't just a web server — it's a <b>reverse proxy</b> standing in front of the whole system, and this is the layer that stops a request before it ever reaches application code.</p>
-      <p style="color:var(--body); font-size:16.5px; line-height:1.55;">Most traditional web servers use <b>thread-per-connection</b>: 10,000 connections means 10,000 threads — expensive in memory, slow to context-switch.</p>
+<section class="slide" data-section="edge-hops">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-gate"/></svg>2.2 · Infrastructure · the API gateway layer</div>
+  <h2>On AWS EKS, three hops can reject a request before it reaches a pod</h2>
+  <div class="body" style="gap:16px;">
+    <div class="chart">
+    <svg viewBox="0 0 1160 104" role="img" aria-label="Client, CloudFront with AWS WAF, ALB, ingress controller, application pod">
+      <defs>
+        <marker id="arrow-edge" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" class="sv-ink"/></marker>
+      </defs>
+      <rect x="0" y="14" width="120" height="54" rx="10" class="sv-box"/>
+      <text x="60" y="46" text-anchor="middle" class="sv-lbl">Client</text>
+      <path d="M122 41 H164" class="sv-line" marker-end="url(#arrow-edge)"/>
+
+      <rect x="170" y="14" width="230" height="54" rx="10" class="sv-box-hot"/>
+      <text x="285" y="38" text-anchor="middle" class="sv-lbl">CloudFront + AWS WAF</text>
+      <text x="285" y="57" text-anchor="middle" class="sv-lbl-sm">AWS edge</text>
+      <text x="285" y="94" text-anchor="middle" class="sv-hot">① can reject</text>
+      <path d="M402 41 H444" class="sv-line" marker-end="url(#arrow-edge)"/>
+
+      <rect x="450" y="14" width="160" height="54" rx="10" class="sv-box"/>
+      <text x="530" y="38" text-anchor="middle" class="sv-lbl">ALB</text>
+      <text x="530" y="57" text-anchor="middle" class="sv-lbl-sm">AWS LB Controller</text>
+      <text x="530" y="94" text-anchor="middle" class="sv-lbl-sm">no rate limit</text>
+      <path d="M612 41 H654" class="sv-line" marker-end="url(#arrow-edge)"/>
+
+      <rect x="660" y="14" width="250" height="54" rx="10" class="sv-box-hot"/>
+      <text x="785" y="38" text-anchor="middle" class="sv-lbl">Ingress controller</text>
+      <text x="785" y="57" text-anchor="middle" class="sv-lbl-sm">Envoy Gateway · Kong</text>
+      <text x="785" y="94" text-anchor="middle" class="sv-hot">② can reject</text>
+      <path d="M912 41 H954" class="sv-line" marker-end="url(#arrow-edge)"/>
+
+      <rect x="960" y="14" width="200" height="54" rx="10" class="sv-box-hot"/>
+      <text x="1060" y="38" text-anchor="middle" class="sv-lbl">App pod</text>
+      <text x="1060" y="57" text-anchor="middle" class="sv-lbl-sm">Micronaut filter</text>
+      <text x="1060" y="94" text-anchor="middle" class="sv-hot">③ can reject</text>
+    </svg>
     </div>
-    <div class="card lift">
-      <svg class="ic"><use href="#ic-server"/></svg>
-      <div class="k">Event-driven, non-blocking I/O</div>
-      <div class="t">One worker, thousands of connections</div>
-      <p>A single event loop thread reacts to <code>data ready</code>, <code>response ready</code>, <code>new connection</code>, <code>timeout</code> — while waiting on network I/O, the worker does other work instead of blocking on it. The same idea as Node.js's event loop, in C, and faster.</p>
-    </div>
+    <table class="tbl dense">
+      <thead><tr><th></th><th>Limits by</th><th>Counter lives in</th><th>Over limit</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td class="name">① AWS WAF</td><td>IP, header, path</td><td>AWS, shared across the edge</td><td><code>403</code>, set to <code>429</code></td><td>Floods, bots: 2,000 req / 5 min per IP</td></tr>
+        <tr><td class="name">ALB</td><td>—</td><td>—</td><td>—</td><td>Routing and TLS only</td></tr>
+        <tr><td class="name">② Ingress</td><td>IP, route, header, API key</td><td>Each controller pod, or Redis</td><td><code>429</code></td><td><code>/login</code>: 5 req/s per IP</td></tr>
+        <tr><td class="name">③ App</td><td>User, tier, endpoint</td><td>Redis</td><td><code>429</code> + <code>Retry-After</code></td><td>Free 100 / min, Pro 1,000 / min</td></tr>
+      </tbody>
+    </table>
+    <ul class="points tight" data-step="1">
+      <li><b>The ingress controller is the first hop you run yourself.</b> It is a Deployment inside the cluster, in front of every Service.</li>
+      <li><b>Using AWS API Gateway instead of ALB?</b> It adds a token bucket per route and per API key (usage plans), and returns <code>429</code>.</li>
+    </ul>
   </div>
-  <div class="notes"><p>This is why Nginx can front 10K concurrent connections on a single core — it isn't magic, it's just never blocking a thread on I/O it could be doing something else during.</p></div>
-  <div class="foot"><span>11 / 45</span><span>nginx · event loop</span></div>
+  <div class="foot"><span>13 / 48</span><span>infrastructure · the path on EKS</span></div>
 </section>
 
-<section class="slide" data-section="nginx-config">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-pipe"/></svg>2.2 · Infrastructure</div>
-  <h2>Nginx enforces rate limits as a leaky bucket</h2>
+<section class="slide" data-section="aws-waf">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-shield"/></svg>2.2 · Infrastructure · hop ① AWS WAF</div>
+  <h2>Block any IP that sends more than 2,000 requests in 5 minutes</h2>
   <div class="split code-left">
-    <pre class="code"><span class="c"># declare a zone: by IP, 10MB, 10 req/s</span>
-limit_req_zone $binary_remote_addr
-  zone=api:10m rate=10r/s;
-
-server {
-  location /api/ {
-<span class="hl">limit_req zone=api burst=20 nodelay;</span>
-<span class="c"># burst=20 : queue up to 20 requests over rate
-# nodelay  : reject past that, no delay</span>
-proxy_pass http://backend;
+    <pre class="code"><span class="c"># aws_wafv2_web_acl, attached to CloudFront or the ALB</span>
+rule {
+  name     = "per-ip-2000-per-5min"
+  priority = 1
+  statement {
+    rate_based_statement {
+<span class="hl">      limit                 = 2000</span>
+<span class="hl">      evaluation_window_sec = 300</span>
+      aggregate_key_type    = "IP"
+    }
+  }
+  action {
+    block {
+<span class="hl">      custom_response { response_code = 429 }</span>
+    }
   }
 }</pre>
     <ul class="points tight">
-      <li><code>burst</code> <b>is</b> the leaky bucket's queue size — this directive is a leaky bucket by another name.</li>
-      <li><span class="chip">load balancing</span> round robin (default), <code>least_conn</code>, <code>ip_hash</code> (sticky sessions), or <code>weight=N</code> sit right alongside it in the same upstream block.</li>
-      <li><span class="chip">Kong / Envoy</span> centralize the same idea as a plugin/config shared across every gateway node — no per-service code to write.</li>
+      <li><b>The flood stops at the AWS edge.</b> It never opens a connection to the ALB, the ingress, or a pod.</li>
+      <li><b>Windows are 1, 2, 5 or 10 minutes.</b> Good for floods and password guessing. Too coarse for "10 req/s".</li>
+      <li><b>Key</b> can be IP, the <code>X-Forwarded-For</code> IP, a header like <code>x-api-key</code>, a path, or a mix.</li>
+      <li><b>Default block is <code>403</code>.</b> Return <code>429</code> so clients back off instead of treating it as an auth error.</li>
     </ul>
   </div>
-  <div class="notes"><p>Infrastructure-layer limiting is coarse — it only knows the IP, never the user or their subscription tier. That gap is exactly what the application layer fills next.</p></div>
-  <div class="foot"><span>12 / 45</span><span>nginx · config &amp; load balancing</span></div>
+  <div class="foot"><span>14 / 48</span><span>aws waf · rate-based rule</span></div>
+</section>
+
+<section class="slide" data-section="ingress-controller">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-pipe"/></svg>2.2 · Infrastructure · hop ② ingress controller</div>
+  <h2>The ingress controller counts with a token bucket or a fixed window</h2>
+  <div class="body" style="gap:18px;">
+    <table class="tbl dense">
+      <thead><tr><th>Controller · setting</th><th>Algorithm</th><th>Counter lives in</th><th>What a burst does</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Envoy Gateway<span>rateLimit.type: Local</span></td><td><b>Token bucket</b></td><td>Memory of each Envoy pod</td><td>Bucket of 10 tokens, refilled every second. 10 pass at once, the 11th gets <code>429</code>.</td></tr>
+        <tr><td class="name">Envoy Gateway<span>rateLimit.type: Global</span></td><td><b>Fixed window</b></td><td>Redis, via Envoy's ratelimit service</td><td>Counter resets every <code>unit</code>. Up to 2× the limit across a window edge.</td></tr>
+        <tr><td class="name">Kong<span>rate-limiting</span></td><td><b>Fixed window</b></td><td>Pod memory, Postgres, or Redis (<code>policy</code>)</td><td>Same 2× edge burst. Several windows at once: <code>second</code>, <code>minute</code>, <code>hour</code>.</td></tr>
+        <tr><td class="name">Kong Enterprise<span>rate-limiting-advanced</span></td><td><b>Sliding window</b></td><td>Redis</td><td>Weights in the previous window, so no 2× edge burst.</td></tr>
+      </tbody>
+    </table>
+    <ul class="points tight" data-step="1">
+      <li><span class="chip risk">local</span>No network hop, but each pod counts alone. 3 controller replicas let through up to 3× the limit.</li>
+      <li><span class="chip hot">global</span>One count for all replicas, at the cost of one Redis call per request. Section 3 shows why the count must be shared.</li>
+      <li><span class="chip risk">gotcha</span>Behind the ALB, key on the client IP from <code>X-Forwarded-For</code>. Otherwise every user has the ALB's IP and shares one bucket.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>15 / 48</span><span>ingress controller · algorithms</span></div>
 </section>
 
 <section class="slide" data-section="app-middleware">
@@ -189,8 +273,7 @@ val result = rateLimiter.check(
       <li><b>Per-API-key, not per-IP</b> — many users legitimately share one office IP; a key identifies the actual user.</li>
     </ul>
   </div>
-  <div class="notes"><p>Infrastructure rate limiting is thick and coarse; application-layer limiting is where product decisions — who gets more, what costs more — actually get enforced.</p></div>
-  <div class="foot"><span>13 / 45</span><span>application layer · business logic</span></div>
+  <div class="foot"><span>16 / 48</span><span>application layer · business logic</span></div>
 </section>
 
 <script>

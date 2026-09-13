@@ -4,8 +4,7 @@
   <div class="section-tag"><i></i>SECTION 5</div>
   <h2>System design</h2>
   <p class="lead">Putting it together: a worked example at 10 million users and 100,000 requests a second.</p>
-  <div class="notes"><p>Requirements, architecture, sharding, hard vs. soft limits, fail-open vs. fail-closed, and backpressure toward third-party APIs.</p></div>
-  <div class="foot"><span>32 / 45</span><span>act v · system design</span></div>
+  <div class="foot"><span>35 / 48</span><span>act v · system design</span></div>
 </section>
 
 <section class="slide" data-section="requirements">
@@ -29,8 +28,7 @@
     <li><b>Per-user limit:</b> 1,000 req/min. <b>Global limit:</b> 500,000 req/min per endpoint.</li>
     <li><b>Availability target:</b> 99.99% — the limiter itself must not become the outage.</li>
   </ul>
-  <div class="notes"><p>These numbers drive every choice on the next few slides: why the limit gets sharded, why fail-open is the default, why 5ms of Redis round-trip is a real budget line, not a rounding error.</p></div>
-  <div class="foot"><span>33 / 45</span><span>system design · requirements</span></div>
+  <div class="foot"><span>36 / 48</span><span>system design · requirements</span></div>
 </section>
 
 <section class="slide" data-section="architecture">
@@ -42,20 +40,19 @@
       <path d="M120 100 H168" class="sv-line" marker-end="url(#arrow-arch)"/>
       <rect x="170" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="225" y="97" text-anchor="middle" class="sv-lbl">Edge</text><text x="225" y="113" text-anchor="middle" class="sv-lbl-sm">DDoS · IP block</text>
       <path d="M280 100 H328" class="sv-line" marker-end="url(#arrow-arch)"/>
-      <rect x="330" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="385" y="97" text-anchor="middle" class="sv-lbl">Nginx</text><text x="385" y="113" text-anchor="middle" class="sv-lbl-sm">per-IP limit</text>
+      <rect x="330" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="385" y="97" text-anchor="middle" class="sv-lbl">Ingress</text><text x="385" y="113" text-anchor="middle" class="sv-lbl-sm">per-IP limit</text>
       <path d="M440 100 H488" class="sv-line" marker-end="url(#arrow-arch)"/>
       <rect x="490" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="545" y="97" text-anchor="middle" class="sv-lbl">App pods</text><text x="545" y="113" text-anchor="middle" class="sv-lbl-sm">×N</text>
       <path d="M600 90 H648" class="sv-line" marker-end="url(#arrow-arch)"/>
       <path d="M600 110 H648" class="sv-line" marker-end="url(#arrow-arch)"/>
-      <rect x="650" y="45" width="140" height="50" rx="10" class="sv-box-hot"/><text x="720" y="67" text-anchor="middle" class="sv-lbl">Rate Limit Svc</text><text x="720" y="83" text-anchor="middle" class="sv-lbl-sm">token bucket + GCRA</text>
+      <rect x="650" y="45" width="140" height="50" rx="10" class="sv-box-hot"/><text x="720" y="67" text-anchor="middle" class="sv-lbl">Rate Limit Svc</text><text x="720" y="83" text-anchor="middle" class="sv-lbl-sm">token bucket</text>
       <rect x="650" y="105" width="140" height="50" rx="10" class="sv-box"/><text x="720" y="127" text-anchor="middle" class="sv-lbl">Business Services</text>
       <path d="M790 70 H838" class="sv-line" marker-end="url(#arrow-arch)"/>
       <rect x="840" y="45" width="270" height="50" rx="10" class="sv-box"/><text x="975" y="63" text-anchor="middle" class="sv-lbl">Redis Cluster</text><text x="975" y="79" text-anchor="middle" class="sv-lbl-sm">shard A · shard B · shard C</text>
       <defs><marker id="arrow-arch" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
     </svg>
   </div>
-  <div class="notes"><p>The rate-limit check is its own hop the application pods call before proceeding — not embedded ad hoc inside each business service.</p></div>
-  <div class="foot"><span>34 / 45</span><span>system design · architecture</span></div>
+  <div class="foot"><span>37 / 48</span><span>system design · architecture</span></div>
 </section>
 
 <section class="slide" data-section="sharding">
@@ -74,8 +71,7 @@
 // total_limit / 16 × 1.1   (10% buffer)</span></pre>
     <p style="color:var(--body); font-size:16.5px; line-height:1.55;">A per-user limit has a natural key and hashes to one node cleanly. A global, per-endpoint limit has no such entity — sharding it across 16 keys spreads the writes instead of hammering one hot key, trading a small amount of precision (the buffer) for throughput.</p>
   </div>
-  <div class="notes"><p>The buffer exists because 16 independently-checked shards can each individually allow a request right at their own edge, letting the true global total run slightly over — accepted on purpose.</p></div>
-  <div class="foot"><span>35 / 45</span><span>sharding · per-user vs. global</span></div>
+  <div class="foot"><span>38 / 48</span><span>sharding · per-user vs. global</span></div>
 </section>
 
 <section class="slide" data-section="hard-soft">
@@ -101,8 +97,7 @@ when {
   result.count &gt; softLimit -&gt; { logger.warn("approaching limit"); proceed() }
   else -&gt; proceed()
 }</pre>
-  <div class="notes"><p>The same rateLimiter.check() call backs both — what differs is purely what the calling code does with the result.</p></div>
-  <div class="foot"><span>36 / 45</span><span>hard limit vs. soft limit</span></div>
+  <div class="foot"><span>39 / 48</span><span>hard limit vs. soft limit</span></div>
 </section>
 
 <section class="slide" data-section="fail-open-closed">
@@ -122,8 +117,7 @@ when {
       <p>Protects billing and security, drops availability to zero for the duration. Chosen when letting anything unmetered through is worse than an outage — payment and quota enforcement, mostly.</p>
     </div>
   </div>
-  <div class="notes"><p>"Most public APIs fail open" is the practical default — the limiter existing to protect availability shouldn't itself become the single point of failure that removes it.</p></div>
-  <div class="foot"><span>37 / 45</span><span>fail-open vs. fail-closed</span></div>
+  <div class="foot"><span>40 / 48</span><span>fail-open vs. fail-closed</span></div>
 </section>
 
 <section class="slide" data-section="outbound-429">
@@ -146,8 +140,7 @@ when {
   <div class="body" style="flex:0;" data-step="1">
     <div class="legend"><span><i class="lg-bar"></i>pacer draining evenly, ahead of the limit</span><span><i class="lg-dot" style="background:var(--reject)"></i>429 → gate closes for a bounded window</span></div>
   </div>
-  <div class="notes"><p>A token-bucket pacer and a reactive circuit gate solve different halves of the same problem: the pacer tries to never get a 429 in the first place, the gate makes sure one 429 isn't wasted as a signal only its own request sees.</p></div>
-  <div class="foot"><span>38 / 45</span><span>client-side backpressure</span></div>
+  <div class="foot"><span>41 / 48</span><span>client-side backpressure</span></div>
 </section>
 
 <section class="slide" data-section="backoff-table">
@@ -163,6 +156,5 @@ when {
       </tbody>
     </table>
   </div>
-  <div class="notes"><p>The two schedules with no jitter are exactly the ones where a real outage produces a genuine thundering herd — every failed job wakes up at the same computed instant.</p></div>
-  <div class="foot"><span>39 / 45</span><span>backoff schedules</span></div>
+  <div class="foot"><span>42 / 48</span><span>backoff schedules</span></div>
 </section>
