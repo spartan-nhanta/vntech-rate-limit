@@ -1,5 +1,3 @@
-// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
-Deck.section(`
 <!-- ============ SECTION 4 — ALGORITHMS ============ -->
 <section class="slide divider" data-section="divider-04">
   <div class="divider-num">04</div>
@@ -284,203 +282,206 @@ else:
   <div class="notes"><p>When in doubt, reach for token bucket. Reach for sliding log only when the accuracy genuinely has to be exact, and for leaky bucket specifically when the thing you're protecting is downstream, not yourself.</p></div>
   <div class="foot"><span>31 / 45</span><span>algorithm comparison</span></div>
 </section>
-`, () => {
-    const { el, scale, fmt, $ } = window.Charts;
 
-    // Slide 3: 10 requests hit acquire() at t=0 against a 5-token bucket refilled at 5/s.
-    function tokenGantt(svg) {
-      const W = 600, H = 330, L = 96, R = 40, T = 10, B = 40;
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      const x = scale(0, 1200, L, W - R);
-      const rows = 10, rh = (H - T - B) / rows;
-      for (let t = 0; t <= 1200; t += 200) {
-        el('line', { x1: x(t), x2: x(t), y1: T, y2: H - B, class: 'sv-grid' }, svg);
-        el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${t} ms`);
-      }
-      el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
-      for (let i = 0; i < rows; i++) {
-        // Tokens after the first five reservations go negative; each request sleeps its own deficit.
-        const wait = i < 5 ? 0 : (i - 4) * 200;
-        const cy = T + rh * i + rh / 2;
-        const g = el('g', i < 5 ? {} : { 'data-step': 1 }, svg);
-        el('text', { x: L - 14, y: cy + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, g, `request ${i + 1}`);
-        if (wait > 0) el('rect', { x: x(0), y: cy - 5, width: x(wait) - x(0), height: 10, rx: 5, class: 'sv-wait' }, g);
-        el('circle', { cx: x(wait), cy, r: 7, class: 'sv-mark' }, g);
-      }
+<script>
+(() => {
+  const { el, scale, fmt, $ } = window.Charts;
+
+  // Slide 3: 10 requests hit acquire() at t=0 against a 5-token bucket refilled at 5/s.
+  function tokenGantt(svg) {
+    const W = 600, H = 330, L = 96, R = 40, T = 10, B = 40;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, 1200, L, W - R);
+    const rows = 10, rh = (H - T - B) / rows;
+    for (let t = 0; t <= 1200; t += 200) {
+      el('line', { x1: x(t), x2: x(t), y1: T, y2: H - B, class: 'sv-grid' }, svg);
+      el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${t} ms`);
     }
-
-    // Slide 5: ideal leaky bucket vs. a sweep that batches with integer division (delay = i / k).
-    function leaky(svg) {
-      const W = 600, H = 250, L = 168, R = 24, T = 14, B = 40, k = 3, n = 20;
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      const x = scale(0, 7, L, W - R);
-      for (let s = 0; s <= 7; s++) {
-        el('line', { x1: x(s), x2: x(s), y1: T, y2: H - B, class: 'sv-grid' }, svg);
-        el('text', { x: x(s), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${s}s`);
-      }
-      el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
-
-      const y1 = 58, y2 = 150;
-      el('text', { x: L - 16, y: y1 - 2, class: 'sv-lbl', 'text-anchor': 'end' }, svg, 'Ideal leaky bucket');
-      el('text', { x: L - 16, y: y1 + 16, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'even, every 333 ms');
-      el('text', { x: L - 16, y: y2 - 2, class: 'sv-lbl', 'text-anchor': 'end' }, svg, 'Batched sweep');
-      el('text', { x: L - 16, y: y2 + 16, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, `groups of ${k} per second`);
-      for (let i = 0; i < n; i++) {
-        el('circle', { cx: x(i / k), cy: y1 + 4, r: 6, class: 'sv-ink' }, svg);
-        const sec = Math.floor(i / k);
-        el('circle', { cx: x(sec), cy: y2 - 14 + (i % k) * 18, r: 6, class: 'sv-mark' }, svg);
-      }
+    el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
+    for (let i = 0; i < rows; i++) {
+      // Tokens after the first five reservations go negative; each request sleeps its own deficit.
+      const wait = i < 5 ? 0 : (i - 4) * 200;
+      const cy = T + rh * i + rh / 2;
+      const g = el('g', i < 5 ? {} : { 'data-step': 1 }, svg);
+      el('text', { x: L - 14, y: cy + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, g, `request ${i + 1}`);
+      if (wait > 0) el('rect', { x: x(0), y: cy - 5, width: x(wait) - x(0), height: 10, rx: 5, class: 'sv-wait' }, g);
+      el('circle', { cx: x(wait), cy, r: 7, class: 'sv-mark' }, g);
     }
+  }
 
-    // Slide 6: a naive expireAfterWrite window starts at the key's first hit, not on the clock.
-    function fixedWindow(svg) {
-      const W = 600, H = 330, L = 44, R = 76, T = 40, B = 44;
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      const x = scale(0, 40, L, W - R); // seconds after 09:59:40
-      const y = scale(0, 11, H - B, T);
-      el('rect', { x: x(0), y: T, width: x(20) - x(0), height: H - B - T, class: 'sv-band' }, svg);
-      el('text', { x: x(0) + 8, y: T + 18, class: 'sv-lbl-sm' }, svg, 'Window A · opened 09:45:00');
-      const bandB = el('g', { 'data-step': 1 }, svg);
-      el('rect', { x: x(25), y: T, width: x(40) - x(25), height: H - B - T, class: 'sv-band-hot' }, bandB);
-      el('text', { x: x(25) + 8, y: T + 18, class: 'sv-lbl-sm' }, bandB, 'Window B · opened 10:00:05');
-
-      for (let c = 0; c <= 10; c += 2) {
-        el('line', { x1: L, x2: W - R, y1: y(c), y2: y(c), class: 'sv-grid' }, svg);
-        el('text', { x: L - 10, y: y(c) + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, svg, c);
-      }
-      const ticks = [[0, '09:59:40'], [10, '09:59:50'], [20, '10:00:00'], [30, '10:00:10'], [40, '10:00:20']];
-      ticks.forEach(([s, label]) => el('text', { x: x(s), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, label));
-      el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
-      el('line', { x1: L, x2: W - R, y1: y(10), y2: y(10), class: 'sv-limit' }, svg);
-      el('text', { x: W - R + 8, y: y(10) + 5, class: 'sv-hot' }, svg, 'limit 10');
-
-      el('text', { x: x(0) + 8, y: y(1) + 4, class: 'sv-lbl-sm' }, svg, '← 1st hit at 09:45:00');
-      const gap = 0.75;
-      for (let c = 2; c <= 10; c++) el('circle', { cx: x(10 + (c - 2) * gap), cy: y(c), r: 5.5, class: 'sv-ink' }, svg);
-      const stepB = el('g', { 'data-step': 1 }, svg);
-      for (let c = 1; c <= 10; c++) el('circle', { cx: x(25 + (c - 1) * gap), cy: y(c), r: 5.5, class: 'sv-mark' }, stepB);
-
-      const first = 10, last = 25 + 9 * gap;
-      const brace = el('g', { 'data-step': 2 }, svg);
-      const by = y(10) - 20;
-      el('path', { d: `M${x(first)} ${by + 8} V${by} H${x(last)} V${by + 8}`, class: 'sv-line' }, brace);
-      el('text', { x: (x(first) + x(last)) / 2, y: by - 8, class: 'sv-lbl', 'text-anchor': 'middle' }, brace,
-        `19 hits in ${Math.round(last - first)} seconds, none of them rejected`);
+  // Slide 5: ideal leaky bucket vs. a sweep that batches with integer division (delay = i / k).
+  function leaky(svg) {
+    const W = 600, H = 250, L = 168, R = 24, T = 14, B = 40, k = 3, n = 20;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, 7, L, W - R);
+    for (let s = 0; s <= 7; s++) {
+      el('line', { x1: x(s), x2: x(s), y1: T, y2: H - B, class: 'sv-grid' }, svg);
+      el('text', { x: x(s), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${s}s`);
     }
+    el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
 
-    // Slide 9: request timestamps kept in a sorted set; anything older than now − 15m is trimmed.
-    function slidingLog(svg) {
-      const W = 600, H = 190, L = 20, R = 20, T = 30, B = 44;
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      const x = scale(0, 30, L, W - R);
-      const times = [2, 4.5, 6, 9, 11.5, 13.5, 16, 17.5, 19, 22, 23.5, 26, 27.5, 29.2];
-      el('rect', { x: x(15), y: T, width: x(30) - x(15), height: H - B - T, rx: 10, class: 'sv-band-hot' }, svg);
-      const live = times.filter((t) => t >= 15).length;
-      el('text', { x: x(15) + 10, y: T + 20, class: 'sv-lbl' }, svg, `last 15 minutes: ${live} timestamps`);
-      el('text', { x: x(0) + 4, y: T + 20, class: 'sv-lbl-sm' }, svg, 'trimmed by score');
-      el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
-      times.forEach((t) => {
-        const old = t < 15;
-        el('circle', { cx: x(t), cy: T + 62, r: 7, class: old ? 'sv-old' : 'sv-mark' }, svg);
-        if (old) el('line', { x1: x(t) - 7, x2: x(t) + 7, y1: T + 69, y2: T + 55, class: 'sv-strike' }, svg);
-      });
-      [[0, 'now − 30 min', 'start'], [15, 'now − 15 min', 'middle'], [30, 'now', 'end']].forEach(([t, label, anchor]) =>
-        el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': anchor }, svg, label));
+    const y1 = 58, y2 = 150;
+    el('text', { x: L - 16, y: y1 - 2, class: 'sv-lbl', 'text-anchor': 'end' }, svg, 'Ideal leaky bucket');
+    el('text', { x: L - 16, y: y1 + 16, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'even, every 333 ms');
+    el('text', { x: L - 16, y: y2 - 2, class: 'sv-lbl', 'text-anchor': 'end' }, svg, 'Batched sweep');
+    el('text', { x: L - 16, y: y2 + 16, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, `groups of ${k} per second`);
+    for (let i = 0; i < n; i++) {
+      el('circle', { cx: x(i / k), cy: y1 + 4, r: 6, class: 'sv-ink' }, svg);
+      const sec = Math.floor(i / k);
+      el('circle', { cx: x(sec), cy: y2 - 14 + (i % k) * 18, r: 6, class: 'sv-mark' }, svg);
     }
+  }
 
-    // Slide 10: estimate = current + previous × (1 − elapsed / window).
-    function slidingCounter() {
-      const prev = $('sw-prev'), curr = $('sw-curr'), elapsed = $('sw-el');
-      const svg = $('sw-bar');
-      const W = 520, H = 210, WIN = 15, LIMIT = 10, MAX = 20;
-      const PX0 = 6, PX1 = 226, CX0 = 294, CX1 = 514;   // two window panels
-      const TOP = 24, BASE = 156;
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-      // Bar height encodes the count; bar width spans the whole window — which is
-      // exactly the algorithm's assumption that requests are spread evenly.
-      const yv = (v) => BASE - (Math.min(v, MAX) / MAX) * (BASE - TOP);
+  // Slide 6: a naive expireAfterWrite window starts at the key's first hit, not on the clock.
+  function fixedWindow(svg) {
+    const W = 600, H = 330, L = 44, R = 76, T = 40, B = 44;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, 40, L, W - R); // seconds after 09:59:40
+    const y = scale(0, 11, H - B, T);
+    el('rect', { x: x(0), y: T, width: x(20) - x(0), height: H - B - T, class: 'sv-band' }, svg);
+    el('text', { x: x(0) + 8, y: T + 18, class: 'sv-lbl-sm' }, svg, 'Window A · opened 09:45:00');
+    const bandB = el('g', { 'data-step': 1 }, svg);
+    el('rect', { x: x(25), y: T, width: x(40) - x(25), height: H - B - T, class: 'sv-band-hot' }, bandB);
+    el('text', { x: x(25) + 8, y: T + 18, class: 'sv-lbl-sm' }, bandB, 'Window B · opened 10:00:05');
 
-      el('text', { x: (PX0 + PX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'previous window');
-      el('text', { x: (CX0 + CX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'current window');
-      el('rect', { x: PX0, y: TOP - 4, width: PX1 - PX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
-      el('rect', { x: CX0, y: TOP - 4, width: CX1 - CX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
-
-      const bAged  = el('rect', { class: 'sv-old' }, svg);
-      const bKeep  = el('rect', { class: 'sv-bar-ink' }, svg);
-      const pSplit = el('line', { class: 'sv-grid' }, svg);
-      const pVal   = el('text', { class: 'sv-hot', 'text-anchor': 'middle' }, svg);
-      const pNote  = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
-
-      const arrow = el('path', { class: 'sv-line-soft' }, svg);
-      const aLbl  = el('text', { x: (PX1 + CX0) / 2, y: 78, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
-
-      const bReal  = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-mark' }, svg);
-      const bCarry = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-carry' }, svg);
-      const nowLn  = el('line', { class: 'sv-axis', 'stroke-dasharray': '3 3' }, svg);
-      const nowLbl = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
-      const cReal  = el('text', { class: 'sv-tick', x: CX0 + 10 }, svg);
-      const cCarry = el('text', { class: 'sv-hot', x: CX0 + 10 }, svg);
-
-      el('line', { x1: CX0, x2: CX1, y1: yv(LIMIT), y2: yv(LIMIT), class: 'sv-limit' }, svg);
-      el('text', { x: CX1 - 6, y: yv(LIMIT) - 7, class: 'sv-hot', 'text-anchor': 'end' }, svg, 'limit 10');
-
-      function update() {
-        const p = Number(prev.value), c = Number(curr.value), e = Number(elapsed.value);
-        const frac = e / WIN;                 // how far into the current window
-        const w = 1 - frac;                   // share of the previous window still in view
-        const weighted = p * w;
-        const est = c + weighted;
-        $('sw-prev-o').textContent = p;
-        $('sw-curr-o').textContent = c;
-        $('sw-el-o').textContent = `${e} min`;
-
-        // Previous window: split along time. Left of the boundary has aged out of the
-        // 15-minute lookback; right of it is what still gets counted.
-        const pw = PX1 - PX0, splitX = PX0 + pw * frac;
-        const py = yv(p), ph = BASE - py;
-        bAged.setAttribute('x', PX0);  bAged.setAttribute('width', pw * frac);
-        bAged.setAttribute('y', py);   bAged.setAttribute('height', ph);
-        bKeep.setAttribute('x', splitX); bKeep.setAttribute('width', pw * w);
-        bKeep.setAttribute('y', py);   bKeep.setAttribute('height', ph);
-        pSplit.setAttribute('x1', splitX); pSplit.setAttribute('x2', splitX);
-        pSplit.setAttribute('y1', TOP - 4); pSplit.setAttribute('y2', BASE);
-        pVal.setAttribute('x', PX0 + pw / 2); pVal.setAttribute('y', py - 7);
-        pVal.textContent = p > 0 ? `${p} requests` : 'no requests';
-        pNote.setAttribute('x', PX0 + pw / 2);
-        pNote.textContent = `${Math.round(w * 100)}% still counted`;
-
-        const mid = (TOP + BASE) / 2;
-        arrow.setAttribute('d', `M${PX1 + 8} ${mid} H${CX0 - 16} m-7 -5 l7 5 l-7 5`);
-        aLbl.textContent = `× ${fmt(w, 2)}`;
-
-        // Current window: real requests solid, carried-over estimate dashed on top.
-        const cy = yv(c), ey = yv(est), carryH = Math.max(0, cy - ey);
-        bReal.setAttribute('y', cy);  bReal.setAttribute('height', BASE - cy);
-        bCarry.setAttribute('y', ey); bCarry.setAttribute('height', carryH);
-        cReal.setAttribute('y', cy + 20);
-        cReal.textContent = BASE - cy > 26 ? `${c} real` : '';
-        cCarry.setAttribute('y', ey + 20);
-        cCarry.textContent = carryH > 26 ? `+ ${fmt(weighted, 1)} carried` : '';
-
-        const nx = CX0 + (CX1 - CX0) * frac;
-        nowLn.setAttribute('x1', nx); nowLn.setAttribute('x2', nx);
-        nowLn.setAttribute('y1', TOP - 4); nowLn.setAttribute('y2', BASE);
-        nowLbl.setAttribute('x', nx); nowLbl.textContent = 'now';
-
-        $('sw-est').textContent = fmt(est, 1);
-        $('sw-calc').innerHTML = `${c} + ${p} × (1 − ${e}/15) = <b>${fmt(est, 1)}</b>`;
-        const pass = est < LIMIT;
-        const v = $('sw-verdict');
-        v.textContent = pass ? 'Allowed' : 'Rejected';
-        v.className = pass ? 'chip ok' : 'chip risk';
-      }
-      [prev, curr, elapsed].forEach((i) => i.addEventListener('input', update));
-      update();
+    for (let c = 0; c <= 10; c += 2) {
+      el('line', { x1: L, x2: W - R, y1: y(c), y2: y(c), class: 'sv-grid' }, svg);
+      el('text', { x: L - 10, y: y(c) + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, svg, c);
     }
+    const ticks = [[0, '09:59:40'], [10, '09:59:50'], [20, '10:00:00'], [30, '10:00:10'], [40, '10:00:20']];
+    ticks.forEach(([s, label]) => el('text', { x: x(s), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, label));
+    el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
+    el('line', { x1: L, x2: W - R, y1: y(10), y2: y(10), class: 'sv-limit' }, svg);
+    el('text', { x: W - R + 8, y: y(10) + 5, class: 'sv-hot' }, svg, 'limit 10');
 
-    tokenGantt($('gantt'));
-    leaky($('leaky'));
-    fixedWindow($('fixed'));
-    slidingLog($('swlog'));
-    slidingCounter();
-});
+    el('text', { x: x(0) + 8, y: y(1) + 4, class: 'sv-lbl-sm' }, svg, '← 1st hit at 09:45:00');
+    const gap = 0.75;
+    for (let c = 2; c <= 10; c++) el('circle', { cx: x(10 + (c - 2) * gap), cy: y(c), r: 5.5, class: 'sv-ink' }, svg);
+    const stepB = el('g', { 'data-step': 1 }, svg);
+    for (let c = 1; c <= 10; c++) el('circle', { cx: x(25 + (c - 1) * gap), cy: y(c), r: 5.5, class: 'sv-mark' }, stepB);
+
+    const first = 10, last = 25 + 9 * gap;
+    const brace = el('g', { 'data-step': 2 }, svg);
+    const by = y(10) - 20;
+    el('path', { d: `M${x(first)} ${by + 8} V${by} H${x(last)} V${by + 8}`, class: 'sv-line' }, brace);
+    el('text', { x: (x(first) + x(last)) / 2, y: by - 8, class: 'sv-lbl', 'text-anchor': 'middle' }, brace,
+      `19 hits in ${Math.round(last - first)} seconds, none of them rejected`);
+  }
+
+  // Slide 9: request timestamps kept in a sorted set; anything older than now − 15m is trimmed.
+  function slidingLog(svg) {
+    const W = 600, H = 190, L = 20, R = 20, T = 30, B = 44;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, 30, L, W - R);
+    const times = [2, 4.5, 6, 9, 11.5, 13.5, 16, 17.5, 19, 22, 23.5, 26, 27.5, 29.2];
+    el('rect', { x: x(15), y: T, width: x(30) - x(15), height: H - B - T, rx: 10, class: 'sv-band-hot' }, svg);
+    const live = times.filter((t) => t >= 15).length;
+    el('text', { x: x(15) + 10, y: T + 20, class: 'sv-lbl' }, svg, `last 15 minutes: ${live} timestamps`);
+    el('text', { x: x(0) + 4, y: T + 20, class: 'sv-lbl-sm' }, svg, 'trimmed by score');
+    el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
+    times.forEach((t) => {
+      const old = t < 15;
+      el('circle', { cx: x(t), cy: T + 62, r: 7, class: old ? 'sv-old' : 'sv-mark' }, svg);
+      if (old) el('line', { x1: x(t) - 7, x2: x(t) + 7, y1: T + 69, y2: T + 55, class: 'sv-strike' }, svg);
+    });
+    [[0, 'now − 30 min', 'start'], [15, 'now − 15 min', 'middle'], [30, 'now', 'end']].forEach(([t, label, anchor]) =>
+      el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': anchor }, svg, label));
+  }
+
+  // Slide 10: estimate = current + previous × (1 − elapsed / window).
+  function slidingCounter() {
+    const prev = $('sw-prev'), curr = $('sw-curr'), elapsed = $('sw-el');
+    const svg = $('sw-bar');
+    const W = 520, H = 210, WIN = 15, LIMIT = 10, MAX = 20;
+    const PX0 = 6, PX1 = 226, CX0 = 294, CX1 = 514;   // two window panels
+    const TOP = 24, BASE = 156;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    // Bar height encodes the count; bar width spans the whole window — which is
+    // exactly the algorithm's assumption that requests are spread evenly.
+    const yv = (v) => BASE - (Math.min(v, MAX) / MAX) * (BASE - TOP);
+
+    el('text', { x: (PX0 + PX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'previous window');
+    el('text', { x: (CX0 + CX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'current window');
+    el('rect', { x: PX0, y: TOP - 4, width: PX1 - PX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
+    el('rect', { x: CX0, y: TOP - 4, width: CX1 - CX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
+
+    const bAged  = el('rect', { class: 'sv-old' }, svg);
+    const bKeep  = el('rect', { class: 'sv-bar-ink' }, svg);
+    const pSplit = el('line', { class: 'sv-grid' }, svg);
+    const pVal   = el('text', { class: 'sv-hot', 'text-anchor': 'middle' }, svg);
+    const pNote  = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
+
+    const arrow = el('path', { class: 'sv-line-soft' }, svg);
+    const aLbl  = el('text', { x: (PX1 + CX0) / 2, y: 78, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
+
+    const bReal  = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-mark' }, svg);
+    const bCarry = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-carry' }, svg);
+    const nowLn  = el('line', { class: 'sv-axis', 'stroke-dasharray': '3 3' }, svg);
+    const nowLbl = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
+    const cReal  = el('text', { class: 'sv-tick', x: CX0 + 10 }, svg);
+    const cCarry = el('text', { class: 'sv-hot', x: CX0 + 10 }, svg);
+
+    el('line', { x1: CX0, x2: CX1, y1: yv(LIMIT), y2: yv(LIMIT), class: 'sv-limit' }, svg);
+    el('text', { x: CX1 - 6, y: yv(LIMIT) - 7, class: 'sv-hot', 'text-anchor': 'end' }, svg, 'limit 10');
+
+    function update() {
+      const p = Number(prev.value), c = Number(curr.value), e = Number(elapsed.value);
+      const frac = e / WIN;                 // how far into the current window
+      const w = 1 - frac;                   // share of the previous window still in view
+      const weighted = p * w;
+      const est = c + weighted;
+      $('sw-prev-o').textContent = p;
+      $('sw-curr-o').textContent = c;
+      $('sw-el-o').textContent = `${e} min`;
+
+      // Previous window: split along time. Left of the boundary has aged out of the
+      // 15-minute lookback; right of it is what still gets counted.
+      const pw = PX1 - PX0, splitX = PX0 + pw * frac;
+      const py = yv(p), ph = BASE - py;
+      bAged.setAttribute('x', PX0);  bAged.setAttribute('width', pw * frac);
+      bAged.setAttribute('y', py);   bAged.setAttribute('height', ph);
+      bKeep.setAttribute('x', splitX); bKeep.setAttribute('width', pw * w);
+      bKeep.setAttribute('y', py);   bKeep.setAttribute('height', ph);
+      pSplit.setAttribute('x1', splitX); pSplit.setAttribute('x2', splitX);
+      pSplit.setAttribute('y1', TOP - 4); pSplit.setAttribute('y2', BASE);
+      pVal.setAttribute('x', PX0 + pw / 2); pVal.setAttribute('y', py - 7);
+      pVal.textContent = p > 0 ? `${p} requests` : 'no requests';
+      pNote.setAttribute('x', PX0 + pw / 2);
+      pNote.textContent = `${Math.round(w * 100)}% still counted`;
+
+      const mid = (TOP + BASE) / 2;
+      arrow.setAttribute('d', `M${PX1 + 8} ${mid} H${CX0 - 16} m-7 -5 l7 5 l-7 5`);
+      aLbl.textContent = `× ${fmt(w, 2)}`;
+
+      // Current window: real requests solid, carried-over estimate dashed on top.
+      const cy = yv(c), ey = yv(est), carryH = Math.max(0, cy - ey);
+      bReal.setAttribute('y', cy);  bReal.setAttribute('height', BASE - cy);
+      bCarry.setAttribute('y', ey); bCarry.setAttribute('height', carryH);
+      cReal.setAttribute('y', cy + 20);
+      cReal.textContent = BASE - cy > 26 ? `${c} real` : '';
+      cCarry.setAttribute('y', ey + 20);
+      cCarry.textContent = carryH > 26 ? `+ ${fmt(weighted, 1)} carried` : '';
+
+      const nx = CX0 + (CX1 - CX0) * frac;
+      nowLn.setAttribute('x1', nx); nowLn.setAttribute('x2', nx);
+      nowLn.setAttribute('y1', TOP - 4); nowLn.setAttribute('y2', BASE);
+      nowLbl.setAttribute('x', nx); nowLbl.textContent = 'now';
+
+      $('sw-est').textContent = fmt(est, 1);
+      $('sw-calc').innerHTML = `${c} + ${p} × (1 − ${e}/15) = <b>${fmt(est, 1)}</b>`;
+      const pass = est < LIMIT;
+      const v = $('sw-verdict');
+      v.textContent = pass ? 'Allowed' : 'Rejected';
+      v.className = pass ? 'chip ok' : 'chip risk';
+    }
+    [prev, curr, elapsed].forEach((i) => i.addEventListener('input', update));
+    update();
+  }
+
+  tokenGantt($('gantt'));
+  leaky($('leaky'));
+  fixedWindow($('fixed'));
+  slidingLog($('swlog'));
+  slidingCounter();
+})();
+</script>

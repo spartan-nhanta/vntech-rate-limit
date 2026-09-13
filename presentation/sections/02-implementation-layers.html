@@ -1,5 +1,3 @@
-// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
-Deck.section(`
 <!-- ============ SECTION 2 — IMPLEMENTATION LAYERS ============ -->
 <section class="slide divider" data-section="divider-02">
   <div class="divider-num">02</div>
@@ -194,44 +192,47 @@ val result = rateLimiter.check(
   <div class="notes"><p>Infrastructure rate limiting is thick and coarse; application-layer limiting is where product decisions — who gets more, what costs more — actually get enforced.</p></div>
   <div class="foot"><span>13 / 45</span><span>application layer · business logic</span></div>
 </section>
-`, () => {
-    const { fmt, $, rng, histogram } = window.Charts;
 
-    function herd() {
-      const CLIENTS = 1000, BASES = [30, 60, 120];
-      const schedule = (jitter) => {
-        const r = rng(7), out = [];
-        for (let i = 0; i < CLIENTS; i++) {
-          let t = 0;
-          BASES.forEach((base) => { t += jitter(base, r); out.push(t); });
-        }
-        return out;
-      };
-      histogram({
-        svg: $('herd'), seg: $('herd-seg'), readout: $('herd-readout'),
-        domain: [0, 300], bin: 5, ymax: 1000, yStep: 250, xStep: 30, xUnit: 's',
-        modes: {
-          none: () => schedule((base) => base),
-          equal: () => schedule((base, r) => base / 2 + r() * (base / 2)),
-          full: () => schedule((base, r) => r() * base),
-        },
-        describe: (peak, at) => `Peak: <b>${fmt(peak)}</b> requests in one 5-second bin, starting at t = ${at}s`,
-      });
-    }
+<script>
+(() => {
+  const { fmt, $, rng, histogram } = window.Charts;
 
-    function retryAfter() {
-      const JOBS = 400, RETRY_AFTER = 60;
-      histogram({
-        svg: $('ra'), seg: $('ra-seg'), readout: $('ra-readout'),
-        domain: [55, 80], bin: 1, ymax: 400, yStep: 100, xStep: 5, xUnit: 's',
-        modes: {
-          exact: () => new Array(JOBS).fill(RETRY_AFTER),
-          jitter: () => { const r = rng(11); return Array.from({ length: JOBS }, () => RETRY_AFTER + r() * RETRY_AFTER * 0.2); },
-        },
-        describe: (peak, at) => `Peak: <b>${fmt(peak)}</b> retries in one 1-second bin, at t = ${at}s`,
-      });
-    }
+  function herd() {
+    const CLIENTS = 1000, BASES = [30, 60, 120];
+    const schedule = (jitter) => {
+      const r = rng(7), out = [];
+      for (let i = 0; i < CLIENTS; i++) {
+        let t = 0;
+        BASES.forEach((base) => { t += jitter(base, r); out.push(t); });
+      }
+      return out;
+    };
+    histogram({
+      svg: $('herd'), seg: $('herd-seg'), readout: $('herd-readout'),
+      domain: [0, 300], bin: 5, ymax: 1000, yStep: 250, xStep: 30, xUnit: 's',
+      modes: {
+        none: () => schedule((base) => base),
+        equal: () => schedule((base, r) => base / 2 + r() * (base / 2)),
+        full: () => schedule((base, r) => r() * base),
+      },
+      describe: (peak, at) => `Peak: <b>${fmt(peak)}</b> requests in one 5-second bin, starting at t = ${at}s`,
+    });
+  }
 
-    herd();
-    retryAfter();
-});
+  function retryAfter() {
+    const JOBS = 400, RETRY_AFTER = 60;
+    histogram({
+      svg: $('ra'), seg: $('ra-seg'), readout: $('ra-readout'),
+      domain: [55, 80], bin: 1, ymax: 400, yStep: 100, xStep: 5, xUnit: 's',
+      modes: {
+        exact: () => new Array(JOBS).fill(RETRY_AFTER),
+        jitter: () => { const r = rng(11); return Array.from({ length: JOBS }, () => RETRY_AFTER + r() * RETRY_AFTER * 0.2); },
+      },
+      describe: (peak, at) => `Peak: <b>${fmt(peak)}</b> retries in one 1-second bin, at t = ${at}s`,
+    });
+  }
+
+  herd();
+  retryAfter();
+})();
+</script>

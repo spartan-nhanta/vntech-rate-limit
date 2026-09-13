@@ -57,7 +57,7 @@
 
 <div class="stage">
   <div class="deck" id="deck">
-    <!-- Slides live in sections/*.js, loaded by the script tags at the bottom of this file. -->
+    <!-- Slides live in sections/*.html, fetched by the loader at the bottom of this file. -->
   </div>
 </div>
 
@@ -67,29 +67,49 @@
 
 <script src="js/charts-lib.js"></script>
 <script>
-// Each sections/*.js calls Deck.section(html, init). Plain <script src> (not fetch) so the
-// deck still opens straight from disk via file://.
-window.Deck = {
-  inits: [],
-  section(html, init) {
-    document.getElementById('deck').insertAdjacentHTML('beforeend', html);
-    if (init) this.inits.push(init);
-  },
-};
+// Sections are fetched, so the deck needs HTTP (GitHub Pages or a local server), not file://.
+// Order here is slide order. Each section's inline <script> (its charts) runs after all
+// slides are in the DOM and before deck.js counts data-step reveals.
+(async () => {
+  const SECTIONS = [
+    '00-cover',
+    '01-introduction',
+    '02-implementation-layers',
+    '03-distributed-state',
+    '04-algorithms',
+    '05-system-design',
+    '06-demo',
+    '07-checkpoint',
+    '08-takeaways',
+  ];
+  const deck = document.getElementById('deck');
+  const htmls = await Promise.all(SECTIONS.map((n) =>
+    fetch(`sections/${n}.html`).then((r) => {
+      if (!r.ok) throw new Error(`sections/${n}.html: HTTP ${r.status}`);
+      return r.text();
+    })));
+  const scripts = [];
+  htmls.forEach((html) => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    tpl.content.querySelectorAll('script').forEach((s) => { scripts.push(s.textContent); s.remove(); });
+    deck.appendChild(tpl.content);
+  });
+  scripts.forEach((code) => {
+    const s = document.createElement('script');
+    s.textContent = code;
+    document.body.appendChild(s);
+  });
+  const engine = document.createElement('script');
+  engine.src = 'js/deck.js';
+  document.body.appendChild(engine);
+})().catch((err) => {
+  const hint = location.protocol === 'file:'
+    ? 'This page was opened as a file. Serve the folder over HTTP instead: <code>cd presentation &amp;&amp; python3 -m http.server</code>, then open <code>http://localhost:8000</code>.'
+    : 'Check that the file exists and the name matches the SECTIONS list in index.html.';
+  document.getElementById('deck').innerHTML =
+    `<p style="padding:2rem;color:var(--ink, #eee)">Failed to load slides: ${err.message}.<br>${hint}</p>`;
+});
 </script>
-<script src="sections/00-cover.js"></script>
-<script src="sections/01-introduction.js"></script>
-<script src="sections/02-implementation-layers.js"></script>
-<script src="sections/03-distributed-state.js"></script>
-<script src="sections/04-algorithms.js"></script>
-<script src="sections/05-system-design.js"></script>
-<script src="sections/06-demo.js"></script>
-<script src="sections/07-checkpoint.js"></script>
-<script src="sections/08-takeaways.js"></script>
-<script>
-// Charts create data-step nodes, so they must exist before the deck engine counts steps.
-Deck.inits.forEach((init) => init());
-</script>
-<script src="js/deck.js"></script>
 </body>
 </html>
