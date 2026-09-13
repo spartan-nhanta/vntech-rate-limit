@@ -1,0 +1,171 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- ============ SECTION 5 — SYSTEM DESIGN ============ -->
+<section class="slide divider" data-section="divider-05">
+  <div class="divider-num">05</div>
+  <div class="section-tag"><i></i>SECTION 5</div>
+  <h2>System design</h2>
+  <p class="lead">Putting it together: a worked example at 10 million users and 100,000 requests a second.</p>
+  <div class="notes"><p>Requirements, architecture, sharding, hard vs. soft limits, fail-open vs. fail-closed, and backpressure toward third-party APIs.</p></div>
+  <div class="foot"><span>32 / 45</span><span>act v · system design</span></div>
+</section>
+
+<section class="slide" data-section="requirements">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>5.1 · Requirements</div>
+  <h2>A worked example</h2>
+  <div class="trio">
+    <div class="card lift" style="align-items:flex-start;">
+      <div class="big" style="font-size:56px;">10</div>
+      <div class="big-unit">million users</div>
+    </div>
+    <div class="card lift" style="align-items:flex-start;">
+      <div class="big" style="font-size:56px;">100</div>
+      <div class="big-unit">thousand req/s peak</div>
+    </div>
+    <div class="card lift" style="align-items:flex-start;">
+      <div class="big" style="font-size:56px;">&lt;5</div>
+      <div class="big-unit">ms latency overhead</div>
+    </div>
+  </div>
+  <ul class="points tight" data-step="1">
+    <li><b>Per-user limit:</b> 1,000 req/min. <b>Global limit:</b> 500,000 req/min per endpoint.</li>
+    <li><b>Availability target:</b> 99.99% — the limiter itself must not become the outage.</li>
+  </ul>
+  <div class="notes"><p>These numbers drive every choice on the next few slides: why the limit gets sharded, why fail-open is the default, why 5ms of Redis round-trip is a real budget line, not a rounding error.</p></div>
+  <div class="foot"><span>33 / 45</span><span>system design · requirements</span></div>
+</section>
+
+<section class="slide" data-section="architecture">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>5.2 · Architecture</div>
+  <h2>Where the rate-limit service sits</h2>
+  <div class="body meter" style="justify-content:center;">
+    <svg viewBox="0 0 1120 200" style="width:100%;height:auto;overflow:visible;">
+      <rect x="10" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="65" y="97" text-anchor="middle" class="sv-lbl">Clients</text><text x="65" y="113" text-anchor="middle" class="sv-lbl-sm">web · mobile</text>
+      <path d="M120 100 H168" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <rect x="170" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="225" y="97" text-anchor="middle" class="sv-lbl">Edge</text><text x="225" y="113" text-anchor="middle" class="sv-lbl-sm">DDoS · IP block</text>
+      <path d="M280 100 H328" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <rect x="330" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="385" y="97" text-anchor="middle" class="sv-lbl">Nginx</text><text x="385" y="113" text-anchor="middle" class="sv-lbl-sm">per-IP limit</text>
+      <path d="M440 100 H488" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <rect x="490" y="75" width="110" height="50" rx="10" class="sv-box"/><text x="545" y="97" text-anchor="middle" class="sv-lbl">App pods</text><text x="545" y="113" text-anchor="middle" class="sv-lbl-sm">×N</text>
+      <path d="M600 90 H648" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <path d="M600 110 H648" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <rect x="650" y="45" width="140" height="50" rx="10" class="sv-box-hot"/><text x="720" y="67" text-anchor="middle" class="sv-lbl">Rate Limit Svc</text><text x="720" y="83" text-anchor="middle" class="sv-lbl-sm">token bucket + GCRA</text>
+      <rect x="650" y="105" width="140" height="50" rx="10" class="sv-box"/><text x="720" y="127" text-anchor="middle" class="sv-lbl">Business Services</text>
+      <path d="M790 70 H838" class="sv-line" marker-end="url(#arrow-arch)"/>
+      <rect x="840" y="45" width="270" height="50" rx="10" class="sv-box"/><text x="975" y="63" text-anchor="middle" class="sv-lbl">Redis Cluster</text><text x="975" y="79" text-anchor="middle" class="sv-lbl-sm">shard A · shard B · shard C</text>
+      <defs><marker id="arrow-arch" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
+    </svg>
+  </div>
+  <div class="notes"><p>The rate-limit check is its own hop the application pods call before proceeding — not embedded ad hoc inside each business service.</p></div>
+  <div class="foot"><span>34 / 45</span><span>system design · architecture</span></div>
+</section>
+
+<section class="slide" data-section="sharding">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>5.3 · Redis Cluster sharding</div>
+  <h2>Per-user keys hash naturally; global keys don't</h2>
+  <div class="split code-left">
+    <pre class="code"><span class="c">// per-user: one natural key, one node</span>
+<span class="hl">rl:{user_456}:token</span>
+<span class="c">// hash "user_456" → 1 fixed slot → 1 fixed node
+// Lua script stays legal, no CROSSSLOT</span>
+
+<span class="c">// global per-endpoint: no natural entity key,</span>
+<span class="c">// so split across N shards instead</span>
+<span class="hl">rl:global:{/api/send}:shard:{random(0,15)}</span>
+<span class="c">// 16 shards, each budgeted at
+// total_limit / 16 × 1.1   (10% buffer)</span></pre>
+    <p style="color:var(--body); font-size:16.5px; line-height:1.55;">A per-user limit has a natural key and hashes to one node cleanly. A global, per-endpoint limit has no such entity — sharding it across 16 keys spreads the writes instead of hammering one hot key, trading a small amount of precision (the buffer) for throughput.</p>
+  </div>
+  <div class="notes"><p>The buffer exists because 16 independently-checked shards can each individually allow a request right at their own edge, letting the true global total run slightly over — accepted on purpose.</p></div>
+  <div class="foot"><span>35 / 45</span><span>sharding · per-user vs. global</span></div>
+</section>
+
+<section class="slide" data-section="hard-soft">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-scale"/></svg>5.4 · Hard limit vs. soft limit</div>
+  <h2>Same check, a different response to the result</h2>
+  <div class="two">
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-lock"/></svg>
+      <div class="k">Hard limit</div>
+      <div class="t">Crossing it rejects immediately</div>
+      <p>Free tier: 100 req/min, no exceptions. Behavior: an instant <code>429</code>. Used for security and preventing abuse — there's no negotiating with it.</p>
+    </div>
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-scale"/></svg>
+      <div class="k">Soft limit</div>
+      <div class="t">Crossing it warns, but keeps serving</div>
+      <p>Pro tier: 1,000 req/min — cross it and the request still goes through, logged and flagged for an overage charge rather than rejected. Business flexibility, not security.</p>
+    </div>
+  </div>
+  <pre class="code" data-step="1">val result = rateLimiter.check(userId)
+when {
+  result.count &gt; hardLimit -&gt; return HTTP_429
+  result.count &gt; softLimit -&gt; { logger.warn("approaching limit"); proceed() }
+  else -&gt; proceed()
+}</pre>
+  <div class="notes"><p>The same rateLimiter.check() call backs both — what differs is purely what the calling code does with the result.</p></div>
+  <div class="foot"><span>36 / 45</span><span>hard limit vs. soft limit</span></div>
+</section>
+
+<section class="slide" data-section="fail-open-closed">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-shield"/></svg>5.5 · When Redis itself is down</div>
+  <h2>Fail-open vs. fail-closed</h2>
+  <div class="two">
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-shield"/></svg>
+      <div class="k">Fail-open</div>
+      <div class="t">Let every request through</div>
+      <p>Higher availability, briefly no protection. Most public APIs choose this, paired with a circuit breaker and tight monitoring — an outage in the limiter shouldn't take down the product it was protecting.</p>
+    </div>
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-shield"/></svg>
+      <div class="k">Fail-closed</div>
+      <div class="t">Reject everything</div>
+      <p>Protects billing and security, drops availability to zero for the duration. Chosen when letting anything unmetered through is worse than an outage — payment and quota enforcement, mostly.</p>
+    </div>
+  </div>
+  <div class="notes"><p>"Most public APIs fail open" is the practical default — the limiter existing to protect availability shouldn't itself become the single point of failure that removes it.</p></div>
+  <div class="foot"><span>37 / 45</span><span>fail-open vs. fail-closed</span></div>
+</section>
+
+<section class="slide" data-section="outbound-429">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-valve"/></svg>5.6 · Being a good client</div>
+  <h2>Pace before the limit, absorb the 429 after</h2>
+  <div class="two">
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-clock"/></svg>
+      <div class="k">Retry-After</div>
+      <div class="t">Read it, then re-enqueue</div>
+      <p>The response header names the wait, either as seconds or as an HTTP date. Clamp it to a sane range, then put the same job back on the queue with that delay.</p>
+    </div>
+    <div class="card lift">
+      <svg class="ic"><use href="#ic-gate"/></svg>
+      <div class="k">Shared circuit gate</div>
+      <div class="t">One 429 should speak for everyone</div>
+      <p>A single shared "closed until" timestamp means one rejected call pauses every concurrent request — instead of each one discovering the limit by being rejected in turn, which is the behavior most likely to get a whole integration blocked outright.</p>
+    </div>
+  </div>
+  <div class="body" style="flex:0;" data-step="1">
+    <div class="legend"><span><i class="lg-bar"></i>pacer draining evenly, ahead of the limit</span><span><i class="lg-dot" style="background:var(--reject)"></i>429 → gate closes for a bounded window</span></div>
+  </div>
+  <div class="notes"><p>A token-bucket pacer and a reactive circuit gate solve different halves of the same problem: the pacer tries to never get a 429 in the first place, the gate makes sure one 429 isn't wasted as a signal only its own request sees.</p></div>
+  <div class="foot"><span>38 / 45</span><span>client-side backpressure</span></div>
+</section>
+
+<section class="slide" data-section="backoff-table">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-clock"/></svg>Backoff schedules</div>
+  <h2>Three schedules, one of them has jitter</h2>
+  <div class="body meter" style="justify-content:center;">
+    <table class="tbl">
+      <thead><tr><th>Style</th><th>Formula</th><th>Jitter</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Exponential<span>computed at write time</span></td><td class="mono">min(30 · 2ⁿ⁻¹, 600) s</td><td><span class="chip risk">none</span></td></tr>
+        <tr><td class="name">Fixed schedule<span>hand-picked steps</span></td><td class="mono">10s → 60s → 300s</td><td><span class="chip risk">none</span></td></tr>
+        <tr><td class="name">Exponential + jitter<span>equal jitter</span></td><td class="mono">random(base/2, base+1)</td><td><span class="chip ok">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="notes"><p>The two schedules with no jitter are exactly the ones where a real outage produces a genuine thundering herd — every failed job wakes up at the same computed instant.</p></div>
+  <div class="foot"><span>39 / 45</span><span>backoff schedules</span></div>
+</section>
+`);

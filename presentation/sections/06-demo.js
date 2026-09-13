@@ -1,0 +1,40 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- ============ SECTION 6 — DEMO ============ -->
+<section class="slide divider" data-section="divider-06">
+  <div class="divider-num">06</div>
+  <div class="section-tag"><i></i>SECTION 6</div>
+  <h2>Demo</h2>
+  <p class="lead">A real app, not a mock — switch the algorithm live and watch the difference immediately.</p>
+  <div class="notes"><p>The reference project ships a full Kotlin/Micronaut backend and React frontend with an admin panel and SSE-streamed state; this deck's demo.html is the static-site equivalent.</p></div>
+  <div class="foot"><span>40 / 45</span><span>act vi · demo</span></div>
+</section>
+
+<section class="slide" data-section="try-it">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-gate"/></svg>Hands on</div>
+  <h2>Open it in four tabs and get throttled</h2>
+  <div class="split even">
+    <div class="stack">
+      <p class="lead" style="font-size:19px;">
+        A live page, not a screenshot: a simulated <code>GET /api/next-phone-number</code>
+        guarded by a real token bucket. Open the link below in three or four tabs and mash
+        the button in each — they all share one bucket through <code>localStorage</code>,
+        the same way replicas behind a load balancer share one Redis-backed limiter.
+      </p>
+      <ul class="points tight">
+        <li><b>Shared bucket</b> — every tab draws from the same 5 tokens, refilling at 1/s, no matter how many tabs are open.</li>
+        <li><b>Per-tab bucket</b> — flip the toggle and each tab gets its own bucket, reproducing the multi-pod counter bug from §3.1.</li>
+      </ul>
+      <p style="color:var(--muted); font-size:14.5px; line-height:1.5;">The reference project's own demo goes further: an admin page that switches the live algorithm and its parameters without a restart, a per-user state visualizer over SSE, and a scripted "boundary spike" run that times a burst to land exactly across a Fixed Window reset.</p>
+    </div>
+    <div class="card lift" style="justify-content:center; align-items:flex-start; gap:18px;">
+      <svg class="ic"><use href="#ic-valve"/></svg>
+      <div class="t">demo.html</div>
+      <p>Live request log, a real-time token gauge, and a mode switch shared across every tab you open.</p>
+      <a href="demo.html" target="_blank" rel="noopener" class="chip hot" style="font-size:15px; padding:11px 18px;">Open the demo ↗</a>
+    </div>
+  </div>
+  <div class="notes"><p>Open this link yourself in a few tabs before presenting it live — the shared bucket makes for a genuinely fun "watch us all get blocked together" moment.</p></div>
+  <div class="foot"><span>41 / 45</span><span>demo · try it yourself</span></div>
+</section>
+`);

@@ -1,0 +1,26 @@
+// Slides for this section. Chart code for these slides, if any, goes in the init function after the HTML.
+Deck.section(`
+<!-- ============ TAKEAWAYS ============ -->
+<section class="slide divider" data-section="divider-08">
+  <div class="divider-num">08</div>
+  <div class="section-tag"><i></i>SECTION 8</div>
+  <h2>Takeaways</h2>
+  <p class="lead">Five things worth carrying out of this room.</p>
+  <div class="notes"><p>Close on the two roles from the cover: protecting your own system, and behaving as a good client of someone else's.</p></div>
+  <div class="foot"><span>44 / 45</span><span>act viii · summary</span></div>
+</section>
+
+<section class="slide" data-section="takeaways">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-list"/></svg>Takeaways</div>
+  <h2>Five things worth remembering</h2>
+  <ul class="points">
+    <li><span class="chip">algorithm</span> Token bucket for bursty inbound traffic; leaky bucket when the output rate matters more than the input shape; a counter for everything else. GCRA is token bucket with one field instead of two.</li>
+    <li><span class="chip">correctness</span> Any read-then-write on a shared counter needs an atomic primitive — a Lua script or equivalent — or a crash between the two steps corrupts the count. In a cluster, remember the hash tag.</li>
+    <li><span class="chip">design</span> The key and the response code carry as much risk as the algorithm: never key on client-supplied data alone, and never let a 429 reveal information a 401 wouldn't.</li>
+    <li><span class="chip">scale</span> Know whether the counter lives per-process or in a shared store — that answer, not the algorithm, decides what the limit actually is once you scale out.</li>
+    <li><span class="chip">backoff</span> Exponential backoff spaces retries apart over time; only jitter spreads concurrent clients apart from each other — and a server-issued Retry-After still needs it.</li>
+  </ul>
+  <div class="notes"><p>Close by connecting back to the two roles from slide 1: everything here is either protecting a system from its clients, or being a well-behaved client of someone else's.</p></div>
+  <div class="foot"><span>45 / 45</span><span>rate-limiting.dev</span></div>
+</section>
+`);
