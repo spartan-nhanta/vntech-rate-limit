@@ -30,8 +30,9 @@ function formatStateCompact(state: Record<string, unknown>): string {
   return Object.entries(state)
     .filter(([k]) => !skip.has(k))
     .map(([k, v]) => {
+      // tokens luôn hiện 2 chữ số lẻ (JSON 4.0 parse ra 4 → phải format riêng)
       const val = typeof v === 'number'
-        ? (Number.isInteger(v) ? v : (v as number).toFixed(2))
+        ? (k === 'tokens' || !Number.isInteger(v) ? v.toFixed(2) : v)
         : v
       return `${k.replace(/_/g, ' ')}: ${val}`
     })
@@ -54,6 +55,17 @@ function now(): string {
 }
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+/** Đồng hồ HH:MM:ss cho audience canh thời điểm click */
+function LiveClock() {
+  const [time, setTime] = useState(() => now().slice(0, 8))
+  useEffect(() => {
+    // tick 200ms để không bị trễ/nhảy cóc giây
+    const id = setInterval(() => setTime(now().slice(0, 8)), 200)
+    return () => clearInterval(id)
+  }, [])
+  return <div className="live-clock">🕒 {time}</div>
+}
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -293,6 +305,7 @@ export default function App() {
           <span className="header-icon">🌐</span>
           <span>Rate Limit Client</span>
         </div>
+        <LiveClock />
         <a className="admin-link" href="http://localhost:3000" target="_blank" rel="noreferrer">
           Open Admin →
         </a>

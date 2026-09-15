@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 3</div>
   <h2>Distributed state</h2>
   <p class="lead">Why Redis, why Lua — the foundation every algorithm in the next section is built on.</p>
-  <div class="foot"><span>17 / 48</span><span>act iii · distributed state</span></div>
+  <div class="foot"><span>18 / 52</span><span>act iii · distributed state</span></div>
 </section>
 
 <section class="slide" data-section="multi-pod">
@@ -28,7 +28,7 @@
       <defs><marker id="arrow-mp" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
     </svg>
   </div>
-  <div class="foot"><span>18 / 48</span><span>distributed state · the problem</span></div>
+  <div class="foot"><span>19 / 52</span><span>distributed state · the problem</span></div>
 </section>
 
 <section class="slide" data-section="race">
@@ -58,7 +58,7 @@ return 0    <span class="c">-- 429</span></pre>
       <p style="margin:0; color:var(--body); font-size:16.5px;">Pod B's script waits for Pod A's, reads <code>0</code>, and returns <code>429</code>.</p>
     </div>
   </div>
-  <div class="foot"><span>19 / 48</span><span>atomicity · Lua scripts</span></div>
+  <div class="foot"><span>20 / 52</span><span>atomicity · Lua scripts</span></div>
 </section>
 
 <section class="slide" data-section="hash-tags">
@@ -76,6 +76,6 @@ rl:user_456:curr  <span class="c">→ node B</span>  <span class="chip risk" sty
 <span class="hl">rl:{user_456}:curr</span>  <span class="c">→ hash "user_456" → node B</span>  <span class="chip ok" style="margin-left:6px;">same node</span></pre>
     <p style="color:var(--body); font-size:16.5px; line-height:1.55;">Two related keys on two different cluster nodes make the Lua script that needs both of them fail outright with a <code>CROSSSLOT</code> error. Wrapping the shared part of the key in <code>{}</code> tells Redis to hash only that substring, guaranteeing every key sharing it lands on the same node — and the script stays legal.</p>
   </div>
-  <div class="foot"><span>20 / 48</span><span>redis cluster · hash tags</span></div>
+  <div class="foot"><span>21 / 52</span><span>redis cluster · hash tags</span></div>
 </section>
 

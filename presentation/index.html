@@ -72,6 +72,7 @@
 (async () => {
   const SECTIONS = [
     '00-cover',
+    '00-outline',
     '01-introduction',
     '02-implementation-layers',
     '03-distributed-state',
@@ -81,6 +82,8 @@
     '07-checkpoint',
     '08-takeaways',
   ];
+  // Cache-bust the stylesheet too: a cached deck.css leaves new slides (e.g. the outline) unstyled.
+  document.querySelector('link[href="css/deck.css"]').href = `css/deck.css?v=${Date.now()}`;
   const deck = document.getElementById('deck');
   const htmls = await Promise.all(SECTIONS.map((n) =>
     fetch(`sections/${n}.html`, { cache: 'no-cache' }).then((r) => {

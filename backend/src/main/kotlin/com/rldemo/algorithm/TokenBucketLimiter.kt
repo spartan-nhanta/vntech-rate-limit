@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
  *   cùng ghi tokens=2 → mất 1 lần trừ.
  *
  * Params: capacity (số token tối đa), rate_per_second (token/giây)
- * Return từ Lua: [allowed(1/0), tokens_remaining_floor, retry_after_ms]
+ * Return từ Lua: [allowed(1/0), tokens_remaining ("%.2f" string), retry_after_ms]
  */
 @Singleton
 class TokenBucketLimiter(
@@ -53,11 +53,12 @@ class TokenBucketLimiter(
             -- TTL: thời gian để fill đầy bucket từ 0 → capacity
             local ttl_ms = math.ceil(capacity / rate_ms)
             redis.call('PEXPIRE', key, ttl_ms)
-            return {1, math.floor(remaining), 0}
+            -- Redis cắt số thực từ Lua thành integer → trả string để giữ phần lẻ
+            return {1, string.format('%.2f', remaining), 0}
         else
             -- Cần thêm bao nhiêu ms để có đủ 1 token
             local retry_ms = math.ceil((1.0 - new_tokens) / rate_ms)
-            return {0, 0, retry_ms}
+            return {0, string.format('%.2f', new_tokens), retry_ms}
         end
     """.trimIndent()
 
@@ -73,7 +74,7 @@ class TokenBucketLimiter(
             val sync = connection.sync()
 
             @Suppress("UNCHECKED_CAST")
-            val result = sync.eval<List<Long>>(
+            val result = sync.eval<List<Any>>(
                 script,
                 io.lettuce.core.ScriptOutputType.MULTI,
                 arrayOf(key),
@@ -83,14 +84,14 @@ class TokenBucketLimiter(
             )
 
             val allowed        = result[0] == 1L
-            val tokensFloor    = result[1]
-            val retryAfterMs   = result[2]
+            val tokens         = (result[1] as String).toDouble()
+            val retryAfterMs   = result[2] as Long
 
             RateLimitResult(
                 allowed = allowed,
                 retryAfterMs = if (allowed) 0L else retryAfterMs,
                 stateSnapshot = mapOf(
-                    "tokens"   to tokensFloor,
+                    "tokens"   to tokens,
                     "capacity" to capacity.toLong()
                 )
             )

@@ -10,7 +10,7 @@
       <li><b>Bucket</b> — split burst and rate into separate params.</li>
     </ul>
   </div>
-  <div class="foot"><span>21 / 48</span><span>act iv · algorithms</span></div>
+  <div class="foot"><span>22 / 52</span><span>act iv · algorithms</span></div>
 </section>
 
 <section class="slide" data-section="window-family">
@@ -51,7 +51,7 @@
     </svg>
     <figcaption>A <code>10 / minute</code> window accepts both rows: it has <b>one</b> number, so burst is always the whole limit.</figcaption>
   </div>
-  <div class="foot"><span>22 / 48</span><span>window family · burst vs. rate</span></div>
+  <div class="foot"><span>23 / 52</span><span>window family · burst vs. rate</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window">
@@ -67,7 +67,7 @@
       <li><span class="chip risk">429</span> Request #11 in the same window is rejected until the counter resets at the next window.</li>
     </ul>
   </div>
-  <div class="foot"><span>23 / 48</span><span>fixed window counter</span></div>
+  <div class="foot"><span>24 / 52</span><span>fixed window counter</span></div>
 </section>
 
 <section class="slide" data-section="inbound-table">
@@ -83,7 +83,7 @@
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>24 / 48</span><span>fixed window · common surfaces</span></div>
+  <div class="foot"><span>25 / 52</span><span>fixed window · common surfaces</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window-boundary">
@@ -96,7 +96,25 @@
       <figcaption><span class="chip risk">boundary attack</span> <span class="chip risk">2× the limit</span> <span class="chip">counter resets on the clock</span></figcaption>
     </div>
   </div>
-  <div class="foot"><span>25 / 48</span><span>fixed window · boundary attack</span></div>
+  <div class="foot"><span>26 / 52</span><span>fixed window · boundary attack</span></div>
+</section>
+
+<section class="slide" data-section="sliding-log-motion">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-log"/></svg>4.2 · Sliding window log · in motion</div>
+  <h2>The window follows now; requests age out one by one</h2>
+  <div class="stack">
+    <div class="formula">rate = <b>10 requests</b> per <b>10 s</b> window · window = <b>(now − 10 s, now]</b></div>
+    <div class="chart meter">
+      <svg id="swa"></svg>
+      <div class="scrub">
+        <div class="seg"><button id="swa-play" type="button" aria-pressed="false">Play</button></div>
+        <input id="swa-scrub" type="range" min="0" max="200" value="0" aria-label="Move now" />
+        <span class="readout">now <b id="swa-now">0.0</b> s</span>
+      </div>
+      <div class="legend"><span><i class="lg-dot"></i>in window</span><span><i class="lg-dot old"></i>aged out</span><span><i class="lg-dot future"></i>not arrived yet</span><span><i class="lg-dot risk"></i>429, not logged</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>27 / 52</span><span>sliding window log · in motion</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log">
@@ -130,7 +148,7 @@
       <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window resets at 00:10 and lets all five through.</p>
     </div>
   </div>
-  <div class="foot"><span>26 / 48</span><span>sliding window log</span></div>
+  <div class="foot"><span>28 / 52</span><span>sliding window log</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log-cost">
@@ -149,7 +167,7 @@
     </table>
     <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window stores <b>one counter</b> per key, whatever the traffic. Use the log only where an exact count is worth the RAM, like billing.</p>
   </div>
-  <div class="foot"><span>27 / 48</span><span>sliding window log · memory</span></div>
+  <div class="foot"><span>29 / 52</span><span>sliding window log · memory</span></div>
 </section>
 
 <section class="slide" data-section="sliding-counter">
@@ -175,7 +193,25 @@
       <p class="caption">Drag the sliders to see <code>current + previous × (1 − elapsed / window)</code> respond — a 10-per-15-minute limit, the same shape as the login example. Worst case is still ~2× the limit — but smeared across the window, not packed into a few seconds at the boundary.</p>
     </div>
   </div>
-  <div class="foot"><span>28 / 48</span><span>sliding window counter</span></div>
+  <div class="foot"><span>30 / 52</span><span>sliding window counter</span></div>
+</section>
+
+<section class="slide" data-section="window-comparison">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-scale"/></svg>Window family, compared</div>
+  <h2>Sliding log is exact but costs memory; sliding counter is cheap and close enough</h2>
+  <div class="body meter" style="justify-content:center;">
+    <table class="tbl">
+      <thead><tr><th>Algorithm</th><th>Memory</th><th>Boundary spike</th><th>Allows burst</th><th>Exact Retry-After</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Fixed Window</td><td class="mono">O(1)</td><td><span class="chip risk">up to 2×</span></td><td>—</td><td>—</td><td>Simple, low-stakes limits</td></tr>
+        <tr><td class="name">Sliding Log</td><td class="mono">O(N)</td><td><span class="chip ok">none</span></td><td>—</td><td>—</td><td>Billing, exact accounting</td></tr>
+        <tr><td class="name">Sliding Counter</td><td class="mono">O(1)</td><td><span class="chip hot">~2× worst case</span></td><td>—</td><td>—</td><td>Most public APIs</td></tr>
+        <tr class="masked"><td class="name">Token Bucket</td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr>
+        <tr class="masked"><td class="name">Leaky Bucket</td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="foot"><span>31 / 52</span><span>window family · summary</span></div>
 </section>
 
 <section class="slide" data-section="bucket-family">
@@ -188,11 +224,11 @@
         <tr><td class="name">Params<span>what you configure</span></td><td><code>limit</code> per <code>window</code> — one number</td><td><code>capacity</code> <b>and</b> <code>rate</code> — two numbers</td></tr>
         <tr><td class="name">Burst<span>max at once</span></td><td>Always the whole limit</td><td><code>capacity</code></td></tr>
         <tr><td class="name">Rate<span>long-run average</span></td><td><code>limit / window</code></td><td><code>rate</code> (refill or leak)</td></tr>
-        <tr><td class="name">"100 / min, but never more than 5 at once"<span>a common product ask</span></td><td><span class="chip risk">can't express it</span></td><td><span class="chip ok">capacity 5, rate 100/min</span></td></tr>
+        <tr><td class="name">"60 / min, but never more than 5 at once"<span>a common product ask</span></td><td><span class="chip risk">can't express it</span></td><td><span class="chip ok">capacity 5, rate 60/min (1/s)</span></td></tr>
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>29 / 48</span><span>bucket family · burst and rate split</span></div>
+  <div class="foot"><span>32 / 52</span><span>bucket family · burst and rate split</span></div>
 </section>
 
 <section class="slide" data-section="token-bucket">
@@ -213,15 +249,15 @@
       <li><span class="chip risk">429</span> <b>Fewer than 1 token → reject.</b> <code>Retry-After = (1 − tokens) / rate</code>, so the client knows exactly when a token will be there.</li>
     </ul>
   </div>
-  <div class="foot"><span>30 / 48</span><span>token bucket</span></div>
+  <div class="foot"><span>33 / 52</span><span>token bucket</span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket">
   <div class="eyebrow"><svg class="ic"><use href="#ic-pipe"/></svg>4.5 · Leaky bucket</div>
-  <h2>Requests pour in at any speed. The hole at the bottom lets out 10 per second.</h2>
+  <h2>Requests pour in at any speed. The hole at the bottom lets out 5 per second.</h2>
   <div class="split">
     <div class="chart meter">
-      <svg viewBox="0 0 600 440" role="img" aria-label="Water tank: bursty requests pour in from a tap at the top, a tap at the bottom lets out 10 requests per second to a 3rd-party API">
+      <svg viewBox="0 0 600 440" role="img" aria-label="Water tank: bursty requests pour in from a tap at the top, a tap at the bottom lets out 5 requests per second to a 3rd-party API">
         <defs><marker id="arrow-lk1" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" class="sv-ink"/></marker></defs>
         <text x="40" y="26" class="sv-lbl">Input · user requests, bursty</text>
         <rect x="40" y="40" width="160" height="22" rx="4" class="sv-box"/>
@@ -232,26 +268,29 @@
         <path d="M152 210 H408" class="sv-line-soft"/>
         <path d="M150 110 V330 H410 V110" class="sv-line" stroke-width="3"/>
         <path d="M150 130 H410" class="sv-limit"/>
-        <text x="420" y="135" class="sv-risk">capacity = 20</text>
-        <text x="280" y="276" text-anchor="middle" class="sv-hot">12 waiting</text>
+        <text x="420" y="135" class="sv-risk">capacity = 5</text>
+        <text x="280" y="276" text-anchor="middle" class="sv-hot">3 waiting</text>
 
         <rect x="269" y="330" width="22" height="24" class="sv-box"/>
         <circle cx="280" cy="368" r="6" class="sv-mark"/><circle cx="280" cy="392" r="6" class="sv-mark"/><circle cx="280" cy="416" r="6" class="sv-mark"/>
         <text x="258" y="396" text-anchor="end" class="sv-lbl">Output</text>
-        <text x="258" y="414" text-anchor="end" class="sv-hot">fixed 10 req/s</text>
+        <text x="258" y="414" text-anchor="end" class="sv-hot">fixed 5 req/s</text>
         <path d="M300 392 H370" class="sv-line" marker-end="url(#arrow-lk1)"/>
         <rect x="374" y="364" width="200" height="56" rx="10" class="sv-box"/>
         <text x="474" y="388" text-anchor="middle" class="sv-lbl">3rd-party API</text>
-        <text x="474" y="406" text-anchor="middle" class="sv-lbl-sm">SMS gateway · max 10/s</text>
+        <text x="474" y="406" text-anchor="middle" class="sv-lbl-sm">SMS gateway · max 5/s</text>
       </svg>
     </div>
-    <ul class="points">
+    <div class="stack">
+      <div class="formula">capacity = <b>5 requests</b> · rate = <b>5 requests / s</b></div>
+      <ul class="points">
       <li><span class="chip hot">use case</span> Application layer, right before calling a 3rd-party API.</li>
-      <li>Users send 50 SMS in one second. The SMS gateway accepts only <b>10 per second</b>.</li>
-      <li>The bucket holds the burst and lets out 10 per second. The vendor never sees a spike, so it never sends us a <code>429</code>.</li>
+      <li>Users send 10 SMS within one second. The SMS gateway accepts only <b>5 per second</b>.</li>
+      <li>The bucket holds the burst and lets out 5 per second. The vendor never sees a spike, so it never sends us a <code>429</code>.</li>
     </ul>
+    </div>
   </div>
-  <div class="foot"><span>31 / 48</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
+  <div class="foot"><span>34 / 52</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket-full">
@@ -260,7 +299,7 @@
   <div class="split">
     <div class="chart meter">
       <svg viewBox="0 0 600 440" role="img" aria-label="Full tank: requests that arrive when the water is at capacity spill over and are rejected with 429">
-        <text x="40" y="26" class="sv-lbl">Burst · 30 requests at t = 0</text>
+        <text x="40" y="26" class="sv-lbl">Burst · 10 requests at t = 0</text>
         <rect x="40" y="40" width="160" height="22" rx="4" class="sv-box"/>
         <rect x="178" y="62" width="22" height="26" class="sv-box"/>
         <circle cx="189" cy="100" r="6" class="sv-mark"/><circle cx="189" cy="116" r="6" class="sv-mark"/>
@@ -268,36 +307,37 @@
         <rect x="152" y="130" width="256" height="198" class="sv-band-hot"/>
         <path d="M150 110 V330 H410 V110" class="sv-line" stroke-width="3"/>
         <path d="M150 130 H410" class="sv-limit"/>
-        <text x="420" y="135" class="sv-risk">capacity = 20</text>
-        <text x="280" y="236" text-anchor="middle" class="sv-hot">20 / 20 full</text>
+        <text x="420" y="135" class="sv-risk">capacity = 5</text>
+        <text x="280" y="236" text-anchor="middle" class="sv-hot">5 / 5 full</text>
 
         <circle cx="136" cy="146" r="6" class="sv-box-risk"/><circle cx="124" cy="176" r="6" class="sv-box-risk"/><circle cx="114" cy="208" r="6" class="sv-box-risk"/>
         <path d="M84 196 L104 216 M104 196 L84 216" class="sv-strike"/>
-        <text x="100" y="250" text-anchor="middle" class="sv-risk">#21–#30</text>
+        <text x="100" y="250" text-anchor="middle" class="sv-risk">#6–#10</text>
         <text x="100" y="270" text-anchor="middle" class="sv-risk">429 now</text>
 
         <rect x="269" y="330" width="22" height="24" class="sv-box"/>
         <circle cx="280" cy="368" r="6" class="sv-mark"/><circle cx="280" cy="392" r="6" class="sv-mark"/><circle cx="280" cy="416" r="6" class="sv-mark"/>
-        <text x="300" y="396" class="sv-lbl">still 10 req/s</text>
+        <text x="300" y="396" class="sv-lbl">still 5 req/s</text>
       </svg>
     </div>
     <div class="stack">
+      <div class="formula">capacity = <b>5 requests</b> · rate = <b>5 requests / s</b></div>
       <table class="tbl dense">
         <thead><tr><th>time</th><th>what happens</th><th>tank</th></tr></thead>
         <tbody>
-          <tr><td class="num">0.0 s</td><td>30 requests arrive. #1–#20 fit.</td><td class="num">20 / 20</td></tr>
-          <tr><td class="num">0.0 s</td><td>#21–#30 <span class="chip risk">429</span> immediately</td><td class="num">20 / 20</td></tr>
-          <tr><td class="num">1.0 s</td><td>10 have drained to the vendor</td><td class="num">10 / 20</td></tr>
-          <tr><td class="num">1.0 s</td><td>new request <span class="chip ok">accepted</span></td><td class="num">11 / 20</td></tr>
+          <tr><td class="num">0.0 s</td><td>10 requests arrive. #1–#5 fit.</td><td class="num">5 / 5</td></tr>
+          <tr><td class="num">0.0 s</td><td>#6–#10 <span class="chip risk">429</span> immediately</td><td class="num">5 / 5</td></tr>
+          <tr><td class="num">0.2 s</td><td>1 has drained to the vendor</td><td class="num">4 / 5</td></tr>
+          <tr><td class="num">0.2 s</td><td>new request <span class="chip ok">accepted</span></td><td class="num">5 / 5</td></tr>
         </tbody>
       </table>
       <ul class="points tight">
         <li>No line outside the tank. <code>capacity</code> is the only waiting room.</li>
-        <li>Rejected callers get <code>429</code> + <code>Retry-After: 1</code>, one drain cycle later.</li>
+        <li>Rejected callers get <code>429</code> + <code>Retry-After: 1</code>: a slot frees every 0.2 s, rounded up to whole seconds.</li>
       </ul>
     </div>
   </div>
-  <div class="foot"><span>32 / 48</span><span>leaky bucket · full tank → 429</span></div>
+  <div class="foot"><span>35 / 52</span><span>leaky bucket · full tank → 429</span></div>
 </section>
 
 <section class="slide" data-section="token-vs-leaky">
@@ -323,7 +363,19 @@ water += 1</pre>
       <li><span class="chip risk">where they differ</span> Leaky bucket as a <b>real queue</b> delays requests instead of rejecting them — that's what makes output smooth.</li>
     </ul>
   </div>
-  <div class="foot"><span>33 / 48</span><span>token vs. leaky bucket</span></div>
+  <div class="foot"><span>36 / 52</span><span>token vs. leaky bucket</span></div>
+</section>
+
+<section class="slide" data-section="bucket-flows">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-valve"/></svg>Token vs. leaky bucket · input and output</div>
+  <h2>Same 429s; token passes the burst, leaky smooths it</h2>
+  <div class="stack">
+    <div class="formula">capacity = <b>5</b> · rate = <b>5 / s</b> · input: <b>8 requests at 0 s</b>, <b>2 at 1 s</b></div>
+    <div class="chart meter">
+      <svg id="bucket-flows" aria-label="Input and output timelines for token bucket and leaky bucket"></svg>
+    </div>
+  </div>
+  <div class="foot"><span>37 / 52</span><span>token vs. leaky bucket · flows</span></div>
 </section>
 
 <section class="slide" data-section="algo-comparison">
@@ -337,11 +389,11 @@ water += 1</pre>
         <tr><td class="name">Sliding Log</td><td class="mono">O(N)</td><td><span class="chip ok">none</span></td><td>—</td><td>—</td><td>Billing, exact accounting</td></tr>
         <tr><td class="name">Sliding Counter</td><td class="mono">O(1)</td><td><span class="chip hot">~2× worst case</span></td><td>—</td><td>—</td><td>Most public APIs</td></tr>
         <tr><td class="name">Token Bucket</td><td class="mono">O(1)</td><td><span class="chip ok">none</span></td><td><span class="chip ok">yes</span></td><td><span class="chip ok">yes</span></td><td><b>Default choice</b></td></tr>
-        <tr><td class="name">Leaky Bucket</td><td class="mono">O(1)</td><td><span class="chip ok">none</span></td><td>—</td><td><span class="chip ok">yes</span></td><td>Protecting a downstream system</td></tr>
+        <tr><td class="name">Leaky Bucket</td><td class="mono">O(1)</td><td><span class="chip ok">none</span></td><td><span class="chip ok">yes</span></td><td><span class="chip ok">yes</span></td><td>Protecting a downstream system</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>34 / 48</span><span>algorithm comparison</span></div>
+  <div class="foot"><span>38 / 52</span><span>algorithm comparison</span></div>
 </section>
 
 <script>
@@ -554,10 +606,191 @@ water += 1</pre>
     update();
   }
 
+  // "now" sweeps 0→20 s; the 10 s window moves with it, so accepted requests age out one at a time.
+  function slidingWindowAnim() {
+    const svg = $('swa'), btn = $('swa-play'), scrub = $('swa-scrub'), slide = svg.closest('.slide');
+    const W = 1100, H = 240, L = 130, R = 30, TOP = 36, AXIS = 206;
+    const WIN = 10, LIMIT = 10, END = 20, SPEED = 1.25, DROP = 0.5;
+    const LANE_OK = 96, LANE_REJ = 172;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, END, L, W - R);
+
+    // Same story as the log table: one early request, a cluster before 10 s, a burst at 12 s,
+    // then two late requests that pass because the cluster's oldest entries have aged out.
+    const arrivals = [1, ...spread(5.5, 9, 8), ...spread(12, 13.2, 5), 14, 16.5, 17.5];
+    const log = [];
+    const reqs = arrivals.map((t) => {
+      const ok = log.filter((a) => a > t - WIN).length < LIMIT;
+      if (ok) log.push(t);
+      return { t, ok };
+    });
+
+    for (let s = 0; s <= END; s += 2) {
+      el('line', { x1: x(s), x2: x(s), y1: TOP, y2: AXIS, class: 'sv-grid' }, svg);
+      el('text', { x: x(s), y: AXIS + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${s}s`);
+    }
+    el('line', { x1: L, x2: W - R, y1: AXIS, y2: AXIS, class: 'sv-axis' }, svg);
+    el('text', { x: L - 16, y: LANE_OK + 4.5, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'accepted · log');
+    el('text', { x: L - 16, y: LANE_REJ + 4.5, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'rejected · 429');
+    el('line', { x1: x(10), x2: x(10), y1: TOP, y2: AXIS, class: 'sv-dash' }, svg);
+    el('text', { x: x(10) + 8, y: AXIS - 8, class: 'sv-lbl-sm' }, svg, 'fixed window would reset here');
+
+    const winRect = el('rect', { y: TOP, height: LANE_REJ - 36 - TOP, rx: 8, class: 'sv-box-hot', 'fill-opacity': 0.6 }, svg);
+    const winLbl = el('text', { y: TOP + 20 }, svg);
+    const dots = reqs.map((r) => {
+      const g = el('g', {}, svg);
+      const c = el('circle', { cx: x(r.t), r: 7 }, g);
+      const d = 5, cx = x(r.t);
+      const strike = r.ok ? null : el('path', { d: `M${cx - d} ${LANE_REJ - d}L${cx + d} ${LANE_REJ + d}M${cx + d} ${LANE_REJ - d}L${cx - d} ${LANE_REJ + d}`, class: 'sv-strike', style: 'stroke-width:2' }, g);
+      return { ...r, c, strike };
+    });
+    const nowLine = el('line', { y1: TOP - 4, y2: AXIS, class: 'sv-line' }, svg);
+    const nowLbl = el('text', { y: TOP - 12, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
+
+    function render(now) {
+      const from = Math.max(0, now - WIN);
+      winRect.setAttribute('x', x(from));
+      winRect.setAttribute('width', x(now) - x(from));
+      const count = reqs.filter((r) => r.ok && r.t <= now && r.t > now - WIN).length;
+      winLbl.setAttribute('x', x(from) + 10);
+      winLbl.setAttribute('class', count >= LIMIT ? 'sv-risk' : 'sv-hot');
+      winLbl.textContent = `${count} / ${LIMIT} in window`;
+      nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
+      nowLbl.setAttribute('x', x(now));
+      nowLbl.textContent = `now ${fmt(now, 1)} s`;
+
+      dots.forEach(({ t, ok, c, strike }) => {
+        if (now < t) {
+          c.setAttribute('cy', LANE_OK); c.setAttribute('class', 'sv-dash');
+          if (strike) strike.style.opacity = 0;
+        } else if (ok) {
+          c.setAttribute('cy', LANE_OK); c.setAttribute('class', t > now - WIN ? 'sv-mark' : 'sv-old');
+        } else {
+          const p = Math.min(1, (now - t) / DROP), ease = 1 - Math.pow(1 - p, 3);
+          c.setAttribute('cy', LANE_OK + (LANE_REJ - LANE_OK) * ease); c.setAttribute('class', 'sv-box-risk');
+          strike.style.opacity = p === 1 ? 1 : 0;
+        }
+      });
+    }
+
+    let now = 0, playing = false, last = 0, raf = 0, wasActive = false;
+    function set(v) {
+      now = v;
+      scrub.value = Math.round(v * 10);
+      $('swa-now').textContent = fmt(v, 1);
+      render(v);
+    }
+    function stop() {
+      playing = false;
+      cancelAnimationFrame(raf);
+      btn.textContent = now >= END ? 'Replay' : 'Play';
+      btn.setAttribute('aria-pressed', 'false');
+    }
+    function frame(ts) {
+      if (!playing) return;
+      // rAF timestamps can trail performance.now(), so time starts from the first frame.
+      if (last === null) last = ts;
+      set(Math.min(END, now + (Math.max(0, ts - last) / 1000) * SPEED));
+      last = ts;
+      if (now >= END) stop(); else raf = requestAnimationFrame(frame);
+    }
+    function play() {
+      if (now >= END) set(0);
+      playing = true;
+      btn.textContent = 'Pause';
+      btn.setAttribute('aria-pressed', 'true');
+      last = null;
+      raf = requestAnimationFrame(frame);
+    }
+    btn.addEventListener('click', () => (playing ? stop() : play()));
+    scrub.addEventListener('input', () => { stop(); set(Number(scrub.value) / 10); });
+
+    // Restart from 0 each time the slide is entered; stop when leaving it.
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    new MutationObserver(() => {
+      const active = slide.classList.contains('active');
+      if (active === wasActive) return;
+      wasActive = active;
+      if (!active) { stop(); return; }
+      if (reduceMotion) { set(END); stop(); } else { set(0); play(); }
+    }).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    set(0);
+  }
+
+  // Same arrivals through both buckets: token bucket forwards the accepted burst at once,
+  // leaky bucket (a real queue) releases accepted requests one every 1 / rate seconds.
+  function bucketFlows(svg) {
+    const W = 1100, ROW = 170, H = 2 * ROW, CAP = 5, RATE = 5, SPAN = 1.4, GAP = 11;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const xin = scale(0, SPAN, 150, 470), xout = scale(0, SPAN, 720, 1070);
+    const arrivals = [...Array(8).fill(0), 1, 1];
+
+    let tokens = CAP, tLast = 0;
+    const token = arrivals.map((t) => {
+      tokens = Math.min(CAP, tokens + (t - tLast) * RATE);
+      tLast = t;
+      const ok = tokens >= 1;
+      if (ok) tokens -= 1;
+      return { t, ok, out: t };
+    });
+    let water = 0, wLast = 0, free = 0;
+    const leaky = arrivals.map((t) => {
+      water = Math.max(0, water - (t - wLast) * RATE);
+      wLast = t;
+      const ok = water + 1 <= CAP + 1e-9;
+      if (!ok) return { t, ok };
+      water += 1;
+      const out = Math.max(t, free);
+      free = out + 1 / RATE;
+      return { t, ok, out };
+    });
+
+    // Requests at the same instant stack upward.
+    function dots(g, list, x, base) {
+      const seen = {};
+      list.forEach(({ t, cls }) => {
+        const k = t.toFixed(3);
+        const i = (seen[k] = (seen[k] ?? -1) + 1);
+        el('circle', { cx: x(t), cy: base - i * GAP, r: 4.5, class: cls }, g);
+      });
+    }
+    function axis(g, x, base) {
+      el('line', { x1: x(0) - 10, x2: x(SPAN), y1: base + 10, y2: base + 10, class: 'sv-axis' }, g);
+      [0, 0.5, 1].forEach((v) => el('text', { x: x(v), y: base + 28, class: 'sv-tick', 'text-anchor': 'middle' }, g, `${v} s`));
+    }
+
+    function row(i, name, res, note) {
+      const top = i * ROW, base = top + 120, mid = base - 30;
+      const g = el('g', i ? { 'data-step': 1 } : {}, svg);
+      if (i) el('line', { x1: 0, x2: W, y1: top - 6, y2: top - 6, class: 'sv-grid' }, g);
+      el('text', { x: 0, y: mid + 5, class: 'sv-lbl' }, g, name);
+      el('text', { x: 150, y: top + 18, class: 'sv-lbl-sm' }, g, 'input · clients');
+      el('text', { x: 720, y: top + 18, class: 'sv-lbl-sm' }, g, 'output · backend');
+      axis(g, xin, base); axis(g, xout, base);
+
+      dots(g, res.map((r) => ({ t: r.t, cls: r.ok ? 'sv-mark' : 'sv-box-risk' })), xin, base);
+      const rejected = res.filter((r) => !r.ok).length;
+      el('text', { x: xin(0) + 16, y: base - 6 * GAP + 4, class: 'sv-risk' }, g, `${rejected} × 429`);
+
+      el('path', { d: `M${xin(SPAN) + 8} ${mid} H558 m-7 -5 l7 5 l-7 5`, class: 'sv-line-soft' }, g);
+      el('path', { d: `M568 ${mid - 34} L576 ${mid + 30} H614 L622 ${mid - 34}`, class: 'sv-line', style: 'stroke-width:3' }, g);
+      el('text', { x: 595, y: mid + 50, class: 'sv-tick', 'text-anchor': 'middle' }, g, `cap ${CAP}`);
+      el('path', { d: `M632 ${mid} H${xout(0) - 16} m-7 -5 l7 5 l-7 5`, class: 'sv-line-soft' }, g);
+
+      dots(g, res.filter((r) => r.ok).map((r) => ({ t: r.out, cls: 'sv-mark' })), xout, base);
+      el('text', { x: note.x, y: note.y, class: 'sv-hot' }, g, note.text);
+    }
+
+    row(0, 'Token bucket', token, { x: xout(0) + 16, y: 120 - 4 * GAP + 4, text: 'burst of 5 goes straight through' });
+    row(1, 'Leaky bucket', leaky, { x: xout(0) - 6, y: ROW + 120 - 22, text: '1 every 0.2 s: a flat 5 / s' });
+  }
+
   tokenBucket($('tb-bucket'));
   tokenGantt($('gantt'));
   fixedWindowChart($('fixed'), { w1: spread(0, 10, 10), w2: spread(10, 20, 11) });
   fixedWindowChart($('fixed-boundary'), { w1: spread(7.5, 10, 10), w2: spread(10, 12.5, 10), zone: [7.5, 12.5] });
   slidingCounter();
+  slidingWindowAnim();
+  bucketFlows($('bucket-flows'));
 })();
 </script>

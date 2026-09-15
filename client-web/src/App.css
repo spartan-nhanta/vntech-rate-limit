@@ -50,6 +50,12 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 16px; font-weight: 700;
 }
 .header-icon { font-size: 18px; }
+.live-clock {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 28px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
 .admin-link {
   font-size: 12px; color: var(--blue);
   text-decoration: none; padding: 5px 12px;

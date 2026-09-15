@@ -66,7 +66,8 @@ The audience is mid-level backend and frontend engineers. `rate-limit-outline.md
 
 1. Create `sections/NN-slug.html`, starting with a divider slide.
 2. Add `'NN-slug'` (no extension) to `SECTIONS` in `index.html` at the right position.
-3. Renumber footers.
+3. Add an `<li data-divider="divider-NN">` to `#outline-list` in `sections/00-outline.html`. That list is the single source for the outline: its script computes each section's start slide and injects the "Section NN / total" mini outline into every divider. Don't hand-write outlines in dividers.
+4. Renumber footers.
 
 ## Charts
 
@@ -119,7 +120,7 @@ Headless check without a browser window:
 | Blank slide / chart missing | Console error in a section `<script>`, or a duplicated `id`. |
 | `→` doesn't reveal the next part | `data-step` numbers missing or not consecutive. |
 | Chart wrong color in one theme | Hard-coded color instead of an `sv-*` class. |
-| Edits don't show | Browser cache — hard reload. |
+| Edits don't show / new slide looks unstyled | Browser cache. `deck.css` and `deck.js` are cache-busted by the loader; for anything else, hard reload. |
 
 ## Known issues
 
