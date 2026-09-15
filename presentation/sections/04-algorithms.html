@@ -10,7 +10,7 @@
       <li><b>Bucket</b> — split burst and rate into separate params.</li>
     </ul>
   </div>
-  <div class="foot"><span>22 / 52</span><span>act iv · algorithms</span></div>
+  <div class="foot"><span>21 / 52</span><span>act iv · algorithms</span></div>
 </section>
 
 <section class="slide" data-section="window-family">
@@ -51,7 +51,7 @@
     </svg>
     <figcaption>A <code>10 / minute</code> window accepts both rows: it has <b>one</b> number, so burst is always the whole limit.</figcaption>
   </div>
-  <div class="foot"><span>23 / 52</span><span>window family · burst vs. rate</span></div>
+  <div class="foot"><span>22 / 52</span><span>window family · burst vs. rate</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window">
@@ -67,23 +67,7 @@
       <li><span class="chip risk">429</span> Request #11 in the same window is rejected until the counter resets at the next window.</li>
     </ul>
   </div>
-  <div class="foot"><span>24 / 52</span><span>fixed window counter</span></div>
-</section>
-
-<section class="slide" data-section="inbound-table">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-window"/></svg>Fixed window · in the wild</div>
-  <h2>Where this shows up in a typical product</h2>
-  <div class="body meter" style="justify-content:center;">
-    <table class="tbl">
-      <thead><tr><th>Surface</th><th>Window</th><th class="num">Limit</th><th>Key</th><th>On breach</th></tr></thead>
-      <tbody>
-        <tr><td class="name">Login<span>brute-force throttling</span></td><td>15 min</td><td class="num">10 / pair · 30 / IP</td><td class="mono">email + IP</td><td><span class="chip">401, not 429</span></td></tr>
-        <tr><td class="name">Form submission<span>spam / abuse guard</span></td><td>10 min</td><td class="num">10</td><td class="mono">tenant:IP</td><td><span class="chip hot">429</span></td></tr>
-        <tr><td class="name">One-time code<span>OTP verification</span></td><td>6 min</td><td class="num">5 wrong tries</td><td class="mono">account id</td><td><span class="chip risk">lockout, 5 min</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="foot"><span>25 / 52</span><span>fixed window · common surfaces</span></div>
+  <div class="foot"><span>23 / 52</span><span>fixed window counter</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window-boundary">
@@ -96,7 +80,7 @@
       <figcaption><span class="chip risk">boundary attack</span> <span class="chip risk">2× the limit</span> <span class="chip">counter resets on the clock</span></figcaption>
     </div>
   </div>
-  <div class="foot"><span>26 / 52</span><span>fixed window · boundary attack</span></div>
+  <div class="foot"><span>24 / 52</span><span class="demo-cue" data-step="2">▶ See the demo · Boundary attack</span><span>fixed window · boundary attack</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log-motion">
@@ -109,12 +93,12 @@
       <div class="scrub">
         <div class="seg"><button id="swa-play" type="button" aria-pressed="false">Play</button></div>
         <input id="swa-scrub" type="range" min="0" max="200" value="0" aria-label="Move now" />
-        <span class="readout">now <b id="swa-now">0.0</b> s</span>
+        <span class="readout compact">now <b id="swa-now">0.0</b> s</span>
       </div>
       <div class="legend"><span><i class="lg-dot"></i>in window</span><span><i class="lg-dot old"></i>aged out</span><span><i class="lg-dot future"></i>not arrived yet</span><span><i class="lg-dot risk"></i>429, not logged</span></div>
     </div>
   </div>
-  <div class="foot"><span>27 / 52</span><span>sliding window log · in motion</span></div>
+  <div class="foot"><span>25 / 52</span><span>sliding window log · in motion</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log">
@@ -148,7 +132,7 @@
       <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window resets at 00:10 and lets all five through.</p>
     </div>
   </div>
-  <div class="foot"><span>28 / 52</span><span>sliding window log</span></div>
+  <div class="foot"><span>26 / 52</span><span>sliding window log</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log-cost">
@@ -167,33 +151,25 @@
     </table>
     <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window stores <b>one counter</b> per key, whatever the traffic. Use the log only where an exact count is worth the RAM, like billing.</p>
   </div>
-  <div class="foot"><span>29 / 52</span><span>sliding window log · memory</span></div>
+  <div class="foot"><span>27 / 52</span><span class="demo-cue">▶ See the demo · Out of space</span><span>sliding window log · memory</span></div>
 </section>
 
-<section class="slide" data-section="sliding-counter">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>4.3 · Sliding window counter</div>
-  <h2>Estimate from two counters</h2>
-  <p style="margin:0; max-width:none; font-size:18px; line-height:1.45; color:var(--body);">A compromise between <b>memory</b> and the <b>boundary</b>: only 2 counters per key, and no 2× spike at the window edge.</p>
-  <div class="split">
-    <div class="stack">
-      <svg id="sw-bar" style="width:100%;height:180px;overflow:visible;"></svg>
-      <div class="legend"><span><i class="lg-dot ink"></i>previous, still counted</span><span><i class="lg-dot old"></i>previous, aged out</span><span><i class="lg-dot"></i>real, this window</span><span><i class="lg-dot carry"></i>carried over — computed</span></div>
-      <div class="formula" id="sw-calc">3 + 8 × (1 − 5/15) = <b>8.3</b></div>
-      <div class="verdict">Result: <span class="chip ok" id="sw-verdict">Allowed</span><span class="readout">estimate <b id="sw-est">8.3</b> / 10</span></div>
-    </div>
-    <div class="stack">
-      <div class="sliders">
-        <label>Previous window's count <output id="sw-prev-o">8</output>
-          <input id="sw-prev" type="range" min="0" max="15" value="8" /></label>
-        <label>Current window's count <output id="sw-curr-o">3</output>
-          <input id="sw-curr" type="range" min="0" max="15" value="3" /></label>
-        <label>Elapsed into current window <output id="sw-el-o">5 min</output>
-          <input id="sw-el" type="range" min="0" max="15" value="5" /></label>
+<section class="slide" data-section="sliding-counter-motion">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-gauge"/></svg>4.3 · Sliding window counter · in motion</div>
+  <h2>The last bucket's count fades as the window slides</h2>
+  <div class="stack">
+    <div class="formula">rate = <b>10 requests</b> per <b>10 s</b> window · estimate = <b>current + previous × (1 − x / 10)</b></div>
+    <div class="chart meter">
+      <svg id="swc"></svg>
+      <div class="scrub">
+        <div class="seg"><button id="swc-play" type="button" aria-pressed="false">Play</button></div>
+        <input id="swc-scrub" type="range" min="0" max="300" value="0" aria-label="Move now" />
+        <span class="readout compact">now <b id="swc-now">0.0</b> s</span>
       </div>
-      <p class="caption">Drag the sliders to see <code>current + previous × (1 − elapsed / window)</code> respond — a 10-per-15-minute limit, the same shape as the login example. Worst case is still ~2× the limit — but smeared across the window, not packed into a few seconds at the boundary.</p>
+      <div class="legend"><span><i class="lg-dot"></i>current bucket · counted</span><span><i class="lg-dot ink"></i>previous bucket · × weight</span><span><i class="lg-dot old"></i>older · ignored</span><span><i class="lg-dot future"></i>not arrived yet</span><span><i class="lg-dot risk"></i>429</span></div>
     </div>
   </div>
-  <div class="foot"><span>30 / 52</span><span>sliding window counter</span></div>
+  <div class="foot"><span>28 / 52</span><span class="demo-cue">▶ See the demo · Prevent the boundary attack and Redis space</span><span>sliding window counter · in motion</span></div>
 </section>
 
 <section class="slide" data-section="window-comparison">
@@ -211,7 +187,7 @@
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>31 / 52</span><span>window family · summary</span></div>
+  <div class="foot"><span>29 / 52</span><span>window family · summary</span></div>
 </section>
 
 <section class="slide" data-section="bucket-family">
@@ -228,7 +204,7 @@
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>32 / 52</span><span>bucket family · burst and rate split</span></div>
+  <div class="foot"><span>30 / 52</span><span>bucket family · burst and rate split</span></div>
 </section>
 
 <section class="slide" data-section="token-bucket">
@@ -237,19 +213,32 @@
   <div class="stack">
     <div class="formula">capacity = <b>5 tokens</b> · rate = <b>5 tokens / s</b> · each request spends <b>1 token</b></div>
     <div style="display:grid; grid-template-columns:230px 1fr; gap:32px; align-items:center;">
-      <svg id="tb-bucket" aria-label="Bucket holding 3.4 of 5 tokens"></svg>
+      <svg id="tb-bucket" aria-label="Token bucket with capacity 5, following the now slider"></svg>
       <div class="chart meter">
         <svg id="gantt"></svg>
-        <div class="legend"><span><i class="lg-dot"></i>request runs, spends 1 token</span><span><i class="lg-dot" style="background:var(--reject)"></i>bucket empty → 429</span></div>
+        <div class="scrub">
+          <input id="gantt-scrub" type="range" min="0" max="1000" step="10" value="0" aria-label="Move now" />
+          <span class="readout compact">now <b id="gantt-now">0</b> ms</span>
+          <div class="legend"><span><i class="lg-dot"></i>spends 1 token</span><span><i class="lg-dot risk"></i>empty → 429</span></div>
+        </div>
       </div>
     </div>
-    <ul class="points tight">
-      <li><span class="chip hot">fractional</span> <b>Tokens can be fractional.</b> 0.08 s × 5 tokens/s = 0.4 token. A request needs at least 1.</li>
+  </div>
+  <div class="foot"><span>31 / 52</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/token-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
+</section>
+
+<section class="slide" data-section="token-bucket-rules">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-bucket"/></svg>4.4 · Token bucket · how each request decides</div>
+  <h2>No timer refills the bucket; each request does the math</h2>
+  <div class="body" style="justify-content:center;">
+    <div class="formula">capacity = <b>5 tokens</b> · rate = <b>5 tokens / s</b> · each request spends <b>1 token</b></div>
+    <ul class="points">
+      <li><span class="chip hot">fractional</span> <b>Tokens can be fractional.</b> 0.1 s × 5 tokens/s = 0.5 token. A request needs at least 1.</li>
       <li><span class="chip hot">no refill job</span> <b>Nothing tops up the bucket on a timer.</b> Each request computes <code>tokens = min(5, tokens + elapsed × 5)</code>.</li>
       <li><span class="chip risk">429</span> <b>Fewer than 1 token → reject.</b> <code>Retry-After = (1 − tokens) / rate</code>, so the client knows exactly when a token will be there.</li>
     </ul>
   </div>
-  <div class="foot"><span>33 / 52</span><span>token bucket</span></div>
+  <div class="foot"><span>32 / 52</span><span>token bucket · fractional tokens, lazy refill, 429</span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket">
@@ -290,7 +279,27 @@
     </ul>
     </div>
   </div>
-  <div class="foot"><span>34 / 52</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
+  <div class="foot"><span>33 / 52</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
+</section>
+
+<section class="slide" data-section="leaky-bucket-motion">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-pipe"/></svg>4.5 · Leaky bucket · in motion</div>
+  <h2>Requests wait in the bucket and leak out one every 200 ms</h2>
+  <div class="stack">
+    <div class="formula">capacity = <b>5 requests</b> · leak = <b>1 every 200 ms</b> (5 / s) · full bucket → <b>429</b></div>
+    <div style="display:grid; grid-template-columns:230px 1fr; gap:32px; align-items:center;">
+      <svg id="lb-bucket" aria-label="Leaky bucket holding numbered requests, following the now slider"></svg>
+      <div class="chart meter">
+        <svg id="lb-gantt"></svg>
+        <div class="scrub">
+          <input id="lb-scrub" type="range" min="0" max="2000" step="10" value="0" aria-label="Move now" />
+          <span class="readout compact">now <b id="lb-now">0</b> ms</span>
+          <div class="legend"><span><i class="lg-dot"></i>in bucket</span><span><i class="lg-dot old"></i>leaked out</span><span><i class="lg-dot risk"></i>429</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>34 / 52</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/rl-leaky-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket-full">
@@ -400,72 +409,213 @@ water += 1</pre>
 (() => {
   const { el, scale, fmt, $ } = window.Charts;
 
-  // Slide 3: 10 requests hit acquire() at t=0 against a 5-token bucket refilled at 5/s.
-  // Token bucket state: capacity 5, holding 3.4 tokens. Each token is one dot in a 3 + 2 pile; the 4th dot is 40% full.
-  function tokenBucket(svg) {
-    const W = 250, H = 222, CAP = 5, TOKENS = 3.4;
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    const top = 96, bottom = 196, left = 44, right = 176, slope = 10, r = 16;
+  // Token bucket: capacity 5, refilled at 5 tokens/s. Refill is lazy: tokens are recomputed only
+  // when a request arrives, and a rejected request spends nothing.
+  const TB_CAP = 5, TB_RATE = 5 / 1000; // tokens per ms
+  const TB_ARRIVALS = [100, 100, 100, 100, 100, 200, 400, 500, 600, 800];
+  function tokenSim() {
+    let tokens = TB_CAP, last = 0;
+    return TB_ARRIVALS.map((t) => {
+      const before = tokens;
+      tokens = Math.min(TB_CAP, tokens + (t - last) * TB_RATE);
+      last = t;
+      const have = tokens, allowed = have >= 1 - 1e-9;
+      if (allowed) tokens -= 1;
+      return { t, before, have, allowed, after: tokens };
+    });
+  }
 
-    el('text', { x: W / 2, y: 16, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'on each request');
-    el('text', { x: W / 2, y: 34, class: 'sv-hot', 'text-anchor': 'middle' }, svg, '+ elapsed × 5');
+  // Bucket drawing: each token is one dot in a 3 + 2 pile, filled from the bottom. Returns set().
+  function tokenBucket(svg) {
+    const W = 250, H = 222, top = 96, bottom = 196, left = 44, right = 176, slope = 10, r = 16;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const head = el('text', { x: W / 2, y: 16, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg);
+    const refillLbl = el('text', { x: W / 2, y: 34, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
     el('path', { d: `M${W / 2} 40 V88`, class: 'sv-line' }, svg);
     el('path', { d: `M${W / 2 - 5} 83 L${W / 2} 89 L${W / 2 + 5} 83`, class: 'sv-line' }, svg);
 
     const cx = (left + right) / 2, row1 = bottom - 2 - r, row2 = row1 - 2 * r + 1;
     const slots = [[cx - 36, row1], [cx, row1], [cx + 36, row1], [cx + 18, row2], [cx - 18, row2]];
     const defs = el('defs', {}, svg);
-    slots.forEach(([x, y], i) => {
-      const fill = Math.max(0, Math.min(1, TOKENS - i));
-      if (fill === 1) { el('circle', { cx: x, cy: y, r: r - 2, class: 'sv-mark' }, svg); return; }
-      el('circle', { cx: x, cy: y, r: r - 2, class: fill > 0 ? 'sv-carry' : 'sv-dash' }, svg);
-      if (fill > 0) {
-        const clip = el('clipPath', { id: 'tb-partial-dot' }, defs);
-        const h = 2 * (r - 2) * fill;
-        el('rect', { x: x - r, y: y + r - 2 - h, width: 2 * r, height: h }, clip);
-        el('circle', { cx: x, cy: y, r: r - 2, class: 'sv-mark', 'clip-path': 'url(#tb-partial-dot)' }, svg);
-      }
+    // Empty slot = dashed outline; the fill is clipped from the bottom, so 0.5 token is half a dot.
+    const fills = slots.map(([x, y], i) => {
+      el('circle', { cx: x, cy: y, r: r - 2, class: 'sv-dash' }, svg);
+      const clip = el('clipPath', { id: `tb-slot-${i}` }, defs);
+      const rect = el('rect', { x: x - r, width: 2 * r, height: 0 }, clip);
+      el('circle', { cx: x, cy: y, r: r - 2, class: 'sv-mark', 'clip-path': `url(#tb-slot-${i})` }, svg);
+      return { y, rect };
     });
     const capY = row2 - r - 6;
     el('line', { x1: left - 6, x2: right + 6, y1: capY, y2: capY, class: 'sv-dash' }, svg);
-    el('text', { x: right + slope + 8, y: capY + 4, class: 'sv-lbl-sm' }, svg, 'cap 5');
-    el('text', { x: right + slope + 8, y: row2 + 4, class: 'sv-hot' }, svg, `← ${fmt(TOKENS % 1, 1)}`);
+    el('text', { x: right + slope + 8, y: capY + 4, class: 'sv-lbl-sm' }, svg, `cap ${TB_CAP}`);
     el('path', { d: `M${left - slope} ${top} L${left} ${bottom} H${right} L${right + slope} ${top}`, class: 'sv-line', style: 'stroke-width:3' }, svg);
+    const total = el('text', { x: cx, y: bottom + 22, class: 'sv-lbl', 'text-anchor': 'middle' }, svg);
 
-    el('text', { x: (left + right) / 2, y: bottom + 22, class: 'sv-lbl', 'text-anchor': 'middle' }, svg, `tokens = ${TOKENS} / ${CAP}`);
+    return function set(tokens, refill) {
+      fills.forEach(({ y, rect }, i) => {
+        const h = 2 * (r - 2) * Math.max(0, Math.min(1, tokens - i));
+        rect.setAttribute('y', y + r - 2 - h);
+        rect.setAttribute('height', h);
+      });
+      head.textContent = refill == null ? 'on each request' : 'request arrives';
+      refillLbl.textContent = refill == null ? `+ elapsed × ${TB_RATE * 1000}` : `+ ${fmt(refill, 1)} token`;
+      total.textContent = `tokens = ${fmt(tokens, 1)} / ${TB_CAP}`;
+    };
   }
 
-  function tokenGantt(svg) {
+  function tokenGantt(svg, setBucket) {
     const W = 960, H = 200, L = 96, R = 30, T = 6, B = 30;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    const CAP = 5, RATE = 5 / 1000; // tokens per ms
-    const arrivals = [0, 0, 0, 0, 0, 200, 400, 500, 600, 800];
+    const sim = tokenSim();
     const x = scale(0, 1000, L, W - R);
-    const rows = arrivals.length, rh = (H - T - B) / rows;
+    const rh = (H - T - B) / sim.length;
     for (let t = 0; t <= 1000; t += 100) {
       el('line', { x1: x(t), x2: x(t), y1: T, y2: H - B, class: 'sv-grid' }, svg);
-      if (t % 200 === 0 || t === 500) el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${t} ms`);
+      if (t % 200 === 0 || t === 100 || t === 500) el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${t} ms`);
     }
     el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, svg);
 
-    // Lazy refill on each arrival; a rejected request spends nothing.
-    let tokens = CAP, last = 0;
-    arrivals.forEach((t, i) => {
-      tokens = Math.min(CAP, tokens + (t - last) * RATE);
-      last = t;
-      const have = tokens;
-      const allowed = have >= 1 - 1e-9;
-      if (allowed) tokens -= 1;
+    const reveal = sim.map((e, i) => {
       const cy = T + rh * i + rh / 2;
-      const g = el('g', i < CAP ? {} : { 'data-step': i - CAP + 1 }, svg);
+      const g = el('g', { style: 'transition: opacity 0.2s' }, svg);
       el('text', { x: L - 14, y: cy + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, g, `request ${i + 1}`);
-      el('circle', { cx: x(t), cy, r: 6, class: allowed ? 'sv-mark' : 'sv-box-risk' }, g);
-      if (i < CAP) return;
-      const label = allowed
-        ? `${fmt(have, 1)} token → pass`
-        : `${fmt(have, 1)} token → 429 · Retry-After ${Math.round((1 - have) / RATE)} ms`;
-      el('text', { x: x(t) + 14, y: cy + 4.5, class: allowed ? 'sv-hot' : 'sv-risk' }, g, label);
+      el('circle', { cx: x(e.t), cy, r: 6, class: e.allowed ? 'sv-mark' : 'sv-box-risk' }, g);
+      if (i >= TB_CAP) {
+        const label = e.allowed
+          ? `${fmt(e.have, 1)} token → pass`
+          : `${fmt(e.have, 1)} token → 429 · Retry-After ${Math.round((1 - e.have) / TB_RATE)} ms`;
+        el('text', { x: x(e.t) + 14, y: cy + 4.5, class: e.allowed ? 'sv-hot' : 'sv-risk' }, g, label);
+      }
+      return { t: e.t, g };
     });
+
+    // Drag "now": a request appears once its timestamp is reached. For 10 ms at each arrival the
+    // bucket shows the refilled count, then what is left after the request spends its token.
+    const nowLine = el('line', { y1: T, y2: H - B, class: 'sv-line' }, svg);
+    const scrub = $('gantt-scrub');
+    function update() {
+      const now = Number(scrub.value);
+      $('gantt-now').textContent = now;
+      nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
+      reveal.forEach(({ t, g }) => { g.style.opacity = t <= now ? 1 : 0; });
+      const past = sim.filter((e) => e.t <= now);
+      if (!past.length) { setBucket(TB_CAP, null); return; }
+      const at = past[past.length - 1].t, group = past.filter((e) => e.t === at);
+      if (now < at + 10) setBucket(group[0].have, group[0].have - group[0].before);
+      else setBucket(group[group.length - 1].after, null);
+    }
+    scrub.addEventListener('input', update);
+    update();
+  }
+
+  // Leaky bucket as a queue: capacity 5, one request leaks out on each 200 ms tick (200, 400, …).
+  // A request that finds 5 already waiting gets 429 and never enters.
+  const LB_CAP = 5, LB_TICK = 200, LB_END = 2000;
+  const LB_ARRIVALS = [100, 100, 100, 100, 100, 300, 700, 700, 700, 1200];
+  function leakySim() {
+    const queue = [];
+    const reqs = LB_ARRIVALS.map((t, i) => ({ id: i + 1, t }));
+    let tick = LB_TICK;
+    reqs.forEach((q) => {
+      // An arrival on a tick sees the bucket after that tick's leak.
+      for (; tick <= q.t; tick += LB_TICK) { const out = queue.shift(); if (out) out.out = tick; }
+      q.ok = queue.length < LB_CAP;
+      if (q.ok) queue.push(q);
+    });
+    for (; queue.length; tick += LB_TICK) queue.shift().out = tick;
+    return reqs;
+  }
+
+  function leakyMotion() {
+    const reqs = leakySim();
+    const left = $('lb-bucket'), right = $('lb-gantt'), scrub = $('lb-scrub');
+    const coin = (parent, id, r) => {
+      const g = el('g', { class: 'coin' }, parent);
+      el('circle', { r }, g);
+      el('text', {}, g, `#${id}`);
+      return g;
+    };
+
+    // Left: bucket with a hole in the bottom; waiting coins stack oldest-first next to the hole.
+    left.setAttribute('viewBox', '0 0 260 310');
+    const status = el('text', { x: 120, y: 16, class: 'sv-lbl', 'text-anchor': 'middle' }, left);
+    el('path', { d: 'M120 26 V70', class: 'sv-line' }, left);
+    el('path', { d: 'M115 65 L120 71 L125 65', class: 'sv-line' }, left);
+    el('line', { x1: 44, x2: 196, y1: 140, y2: 140, class: 'sv-dash' }, left);
+    el('text', { x: 204, y: 144, class: 'sv-lbl-sm' }, left, `cap ${LB_CAP}`);
+    el('path', { d: 'M40 90 L50 212 H106', class: 'sv-line', style: 'stroke-width:3' }, left);
+    el('path', { d: 'M134 212 H190 L200 90', class: 'sv-line', style: 'stroke-width:3' }, left);
+    el('text', { x: 142, y: 234, class: 'sv-hot' }, left, '1 / 200 ms');
+    el('line', { x1: 10, x2: 250, y1: 278, y2: 278, class: 'sv-grid' }, left);
+    el('text', { x: 10, y: 300, class: 'sv-lbl-sm' }, left, 'sent to backend');
+    const rejLbl = el('text', { x: 226, y: 84, class: 'sv-risk', 'text-anchor': 'middle' }, left, '429');
+    const SLOTS = [[120, 194], [86, 194], [154, 194], [103, 162], [137, 162]];
+    const INPUT = [120, 40], REJECT = [226, 52];
+    const leftCoins = reqs.map((q) => {
+      const g = coin(left, q.id, 15);
+      g.classList.add('coin-move', 'lg');
+      return g;
+    });
+
+    // Right: one row per request, like the token bucket timeline.
+    const W = 960, H = 230, L = 96, R = 30, T = 6, B = 30;
+    right.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, LB_END, L, W - R);
+    const rh = (H - T - B) / reqs.length;
+    for (let t = 0; t <= LB_END; t += 100) {
+      el('line', { x1: x(t), x2: x(t), y1: T, y2: H - B, class: 'sv-grid' }, right);
+      if (t % 200 === 0) el('text', { x: x(t), y: H - B + 24, class: 'sv-tick', 'text-anchor': 'middle' }, right, `${t} ms`);
+    }
+    el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, class: 'sv-axis' }, right);
+    const rows = reqs.map((q, i) => {
+      const cy = T + rh * i + rh / 2;
+      const g = el('g', { style: 'transition: opacity 0.2s' }, right);
+      el('text', { x: L - 14, y: cy + 4.5, class: 'sv-tick', 'text-anchor': 'end' }, g, `request #${q.id}`);
+      const wait = el('line', { x1: x(q.t), x2: x(q.t), y1: cy, y2: cy, class: 'sv-line-soft' }, g);
+      const leak = q.ok ? el('line', { x1: x(q.out), x2: x(q.out), y1: cy - 7, y2: cy + 7, class: 'sv-axis' }, g) : null;
+      const c = coin(g, q.id, 8);
+      c.setAttribute('transform', `translate(${x(q.t)} ${cy})`);
+      const lbl = el('text', { y: cy + 4.5 }, g);
+      return { g, wait, leak, c, lbl };
+    });
+    const nowLine = el('line', { y1: T, y2: H - B, class: 'sv-line' }, right);
+
+    function update() {
+      const now = Number(scrub.value);
+      $('lb-now').textContent = now;
+      nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
+      const waiting = reqs.filter((q) => q.ok && q.t <= now && q.out > now);
+      const sent = reqs.filter((q) => q.ok && q.out <= now).sort((a, b) => a.out - b.out);
+      status.textContent = `in bucket ${waiting.length} / ${LB_CAP}`;
+      rejLbl.style.opacity = reqs.some((q) => !q.ok && q.t <= now) ? 1 : 0;
+
+      reqs.forEach((q, i) => {
+        const arrived = q.t <= now, leaked = q.ok && q.out <= now;
+        const state = !q.ok ? 'risk' : leaked ? 'old' : '';
+        let pos = INPUT, size = 1;
+        if (!q.ok) pos = REJECT;
+        else if (leaked) { pos = [22 + sent.indexOf(q) * 28, 258]; size = 0.6; }
+        else if (arrived) pos = SLOTS[waiting.indexOf(q)];
+
+        const g = leftCoins[i];
+        g.style.opacity = arrived ? 1 : 0;
+        g.style.transform = `translate(${pos[0]}px, ${pos[1]}px) scale(${size})`;
+        [g, rows[i].c].forEach((n) => {
+          n.classList.toggle('old', state === 'old');
+          n.classList.toggle('risk', state === 'risk');
+        });
+
+        const row = rows[i];
+        row.g.style.opacity = arrived ? 1 : 0;
+        row.wait.setAttribute('x2', x(q.ok ? Math.min(now, q.out) : q.t));
+        if (row.leak) row.leak.style.opacity = leaked ? 1 : 0;
+        row.lbl.setAttribute('x', x(q.ok ? Math.max(q.t, Math.min(now, q.out)) : q.t) + 14);
+        row.lbl.setAttribute('class', state === 'risk' ? 'sv-risk' : state === 'old' ? 'sv-lbl-sm' : 'sv-hot');
+        row.lbl.textContent = state === 'risk' ? '429 · bucket full' : state === 'old' ? `leaked ${q.out} ms` : 'in bucket';
+      });
+    }
+    scrub.addEventListener('input', update);
+    update();
   }
 
   function fixedWindowChart(svg, { w1, w2, zone }) {
@@ -516,99 +666,57 @@ water += 1</pre>
 
   const spread = (from, to, n) => Array.from({ length: n }, (_, i) => from + ((i + 0.5) * (to - from)) / n);
 
-  // Slide 9: request timestamps kept in a sorted set; anything older than now − 15m is trimmed.
-  function slidingCounter() {
-    const prev = $('sw-prev'), curr = $('sw-curr'), elapsed = $('sw-el');
-    const svg = $('sw-bar');
-    const W = 520, H = 210, WIN = 15, LIMIT = 10, MAX = 20;
-    const PX0 = 6, PX1 = 226, CX0 = 294, CX1 = 514;   // two window panels
-    const TOP = 24, BASE = 156;
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    // Bar height encodes the count; bar width spans the whole window — which is
-    // exactly the algorithm's assumption that requests are spread evenly.
-    const yv = (v) => BASE - (Math.min(v, MAX) / MAX) * (BASE - TOP);
-
-    el('text', { x: (PX0 + PX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'previous window');
-    el('text', { x: (CX0 + CX1) / 2, y: 14, class: 'sv-lbl-sm', 'text-anchor': 'middle' }, svg, 'current window');
-    el('rect', { x: PX0, y: TOP - 4, width: PX1 - PX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
-    el('rect', { x: CX0, y: TOP - 4, width: CX1 - CX0, height: BASE - TOP + 4, rx: 8, class: 'sv-box' }, svg);
-
-    const bAged  = el('rect', { class: 'sv-old' }, svg);
-    const bKeep  = el('rect', { class: 'sv-bar-ink' }, svg);
-    const pSplit = el('line', { class: 'sv-grid' }, svg);
-    const pVal   = el('text', { class: 'sv-hot', 'text-anchor': 'middle' }, svg);
-    const pNote  = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
-
-    const arrow = el('path', { class: 'sv-line-soft' }, svg);
-    const aLbl  = el('text', { x: (PX1 + CX0) / 2, y: 78, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
-
-    const bReal  = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-mark' }, svg);
-    const bCarry = el('rect', { x: CX0, width: CX1 - CX0, class: 'sv-carry' }, svg);
-    const nowLn  = el('line', { class: 'sv-axis', 'stroke-dasharray': '3 3' }, svg);
-    const nowLbl = el('text', { class: 'sv-tick', 'text-anchor': 'middle', y: BASE + 18 }, svg);
-    const cReal  = el('text', { class: 'sv-tick', x: CX0 + 10 }, svg);
-    const cCarry = el('text', { class: 'sv-hot', x: CX0 + 10 }, svg);
-
-    el('line', { x1: CX0, x2: CX1, y1: yv(LIMIT), y2: yv(LIMIT), class: 'sv-limit' }, svg);
-    el('text', { x: CX1 - 6, y: yv(LIMIT) - 7, class: 'sv-hot', 'text-anchor': 'end' }, svg, 'limit 10');
-
-    function update() {
-      const p = Number(prev.value), c = Number(curr.value), e = Number(elapsed.value);
-      const frac = e / WIN;                 // how far into the current window
-      const w = 1 - frac;                   // share of the previous window still in view
-      const weighted = p * w;
-      const est = c + weighted;
-      $('sw-prev-o').textContent = p;
-      $('sw-curr-o').textContent = c;
-      $('sw-el-o').textContent = `${e} min`;
-
-      // Previous window: split along time. Left of the boundary has aged out of the
-      // 15-minute lookback; right of it is what still gets counted.
-      const pw = PX1 - PX0, splitX = PX0 + pw * frac;
-      const py = yv(p), ph = BASE - py;
-      bAged.setAttribute('x', PX0);  bAged.setAttribute('width', pw * frac);
-      bAged.setAttribute('y', py);   bAged.setAttribute('height', ph);
-      bKeep.setAttribute('x', splitX); bKeep.setAttribute('width', pw * w);
-      bKeep.setAttribute('y', py);   bKeep.setAttribute('height', ph);
-      pSplit.setAttribute('x1', splitX); pSplit.setAttribute('x2', splitX);
-      pSplit.setAttribute('y1', TOP - 4); pSplit.setAttribute('y2', BASE);
-      pVal.setAttribute('x', PX0 + pw / 2); pVal.setAttribute('y', py - 7);
-      pVal.textContent = p > 0 ? `${p} requests` : 'no requests';
-      pNote.setAttribute('x', PX0 + pw / 2);
-      pNote.textContent = `${Math.round(w * 100)}% still counted`;
-
-      const mid = (TOP + BASE) / 2;
-      arrow.setAttribute('d', `M${PX1 + 8} ${mid} H${CX0 - 16} m-7 -5 l7 5 l-7 5`);
-      aLbl.textContent = `× ${fmt(w, 2)}`;
-
-      // Current window: real requests solid, carried-over estimate dashed on top.
-      const cy = yv(c), ey = yv(est), carryH = Math.max(0, cy - ey);
-      bReal.setAttribute('y', cy);  bReal.setAttribute('height', BASE - cy);
-      bCarry.setAttribute('y', ey); bCarry.setAttribute('height', carryH);
-      cReal.setAttribute('y', cy + 20);
-      cReal.textContent = BASE - cy > 26 ? `${c} real` : '';
-      cCarry.setAttribute('y', ey + 20);
-      cCarry.textContent = carryH > 26 ? `+ ${fmt(weighted, 1)} carried` : '';
-
-      const nx = CX0 + (CX1 - CX0) * frac;
-      nowLn.setAttribute('x1', nx); nowLn.setAttribute('x2', nx);
-      nowLn.setAttribute('y1', TOP - 4); nowLn.setAttribute('y2', BASE);
-      nowLbl.setAttribute('x', nx); nowLbl.textContent = 'now';
-
-      $('sw-est').textContent = fmt(est, 1);
-      $('sw-calc').innerHTML = `${c} + ${p} × (1 − ${e}/15) = <b>${fmt(est, 1)}</b>`;
-      const pass = est < LIMIT;
-      const v = $('sw-verdict');
-      v.textContent = pass ? 'Allowed' : 'Rejected';
-      v.className = pass ? 'chip ok' : 'chip risk';
+  // Play / pause / scrub for a 0 → end animation. Restarts from 0 each time its slide is entered.
+  // Expects #<prefix>-play, #<prefix>-scrub and #<prefix>-now next to the svg.
+  function timeline({ svg, prefix, end, speed, render }) {
+    const btn = $(`${prefix}-play`), scrub = $(`${prefix}-scrub`), out = $(`${prefix}-now`), slide = svg.closest('.slide');
+    scrub.max = end * 10;
+    let now = 0, playing = false, last = null, raf = 0, wasActive = false;
+    function set(v) {
+      now = v;
+      scrub.value = Math.round(v * 10);
+      out.textContent = fmt(v, 1);
+      render(v);
     }
-    [prev, curr, elapsed].forEach((i) => i.addEventListener('input', update));
-    update();
+    function stop() {
+      playing = false;
+      cancelAnimationFrame(raf);
+      btn.textContent = now >= end ? 'Replay' : 'Play';
+      btn.setAttribute('aria-pressed', 'false');
+    }
+    function frame(ts) {
+      if (!playing) return;
+      // rAF timestamps can trail performance.now(), so time starts from the first frame.
+      if (last === null) last = ts;
+      set(Math.min(end, now + (Math.max(0, ts - last) / 1000) * speed));
+      last = ts;
+      if (now >= end) stop(); else raf = requestAnimationFrame(frame);
+    }
+    function play() {
+      if (now >= end) set(0);
+      playing = true;
+      btn.textContent = 'Pause';
+      btn.setAttribute('aria-pressed', 'true');
+      last = null;
+      raf = requestAnimationFrame(frame);
+    }
+    btn.addEventListener('click', () => (playing ? stop() : play()));
+    scrub.addEventListener('input', () => { stop(); set(Number(scrub.value) / 10); });
+
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    new MutationObserver(() => {
+      const active = slide.classList.contains('active');
+      if (active === wasActive) return;
+      wasActive = active;
+      if (!active) { stop(); return; }
+      if (reduceMotion) { set(end); stop(); } else { set(0); play(); }
+    }).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    set(0);
   }
 
   // "now" sweeps 0→20 s; the 10 s window moves with it, so accepted requests age out one at a time.
   function slidingWindowAnim() {
-    const svg = $('swa'), btn = $('swa-play'), scrub = $('swa-scrub'), slide = svg.closest('.slide');
+    const svg = $('swa');
     const W = 1100, H = 240, L = 130, R = 30, TOP = 36, AXIS = 206;
     const WIN = 10, LIMIT = 10, END = 20, SPEED = 1.25, DROP = 0.5;
     const LANE_OK = 96, LANE_REJ = 172;
@@ -673,48 +781,7 @@ water += 1</pre>
       });
     }
 
-    let now = 0, playing = false, last = 0, raf = 0, wasActive = false;
-    function set(v) {
-      now = v;
-      scrub.value = Math.round(v * 10);
-      $('swa-now').textContent = fmt(v, 1);
-      render(v);
-    }
-    function stop() {
-      playing = false;
-      cancelAnimationFrame(raf);
-      btn.textContent = now >= END ? 'Replay' : 'Play';
-      btn.setAttribute('aria-pressed', 'false');
-    }
-    function frame(ts) {
-      if (!playing) return;
-      // rAF timestamps can trail performance.now(), so time starts from the first frame.
-      if (last === null) last = ts;
-      set(Math.min(END, now + (Math.max(0, ts - last) / 1000) * SPEED));
-      last = ts;
-      if (now >= END) stop(); else raf = requestAnimationFrame(frame);
-    }
-    function play() {
-      if (now >= END) set(0);
-      playing = true;
-      btn.textContent = 'Pause';
-      btn.setAttribute('aria-pressed', 'true');
-      last = null;
-      raf = requestAnimationFrame(frame);
-    }
-    btn.addEventListener('click', () => (playing ? stop() : play()));
-    scrub.addEventListener('input', () => { stop(); set(Number(scrub.value) / 10); });
-
-    // Restart from 0 each time the slide is entered; stop when leaving it.
-    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    new MutationObserver(() => {
-      const active = slide.classList.contains('active');
-      if (active === wasActive) return;
-      wasActive = active;
-      if (!active) { stop(); return; }
-      if (reduceMotion) { set(END); stop(); } else { set(0); play(); }
-    }).observe(slide, { attributes: true, attributeFilter: ['class'] });
-    set(0);
+    timeline({ svg, prefix: 'swa', end: END, speed: SPEED, render });
   }
 
   // Same arrivals through both buckets: token bucket forwards the accepted burst at once,
@@ -785,12 +852,103 @@ water += 1</pre>
     row(1, 'Leaky bucket', leaky, { x: xout(0) - 6, y: ROW + 120 - 22, text: '1 every 0.2 s: a flat 5 / s' });
   }
 
-  tokenBucket($('tb-bucket'));
-  tokenGantt($('gantt'));
+  // Sliding window counter keeps only two numbers: this bucket's count and the last bucket's count.
+  // The last count is weighted by how much of the last bucket the 10 s window still covers.
+  function slidingCounterAnim() {
+    const svg = $('swc');
+    const W = 1100, H = 260, L = 130, R = 30, TOP = 58, AXIS = 214;
+    const WIN = 10, LIMIT = 10, END = 30, SPEED = 2, DROP = 0.5;
+    const LANE_OK = 118, LANE_REJ = 178;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const x = scale(0, END, L, W - R);
+
+    // Bucket 0–10 s fills to 8; a burst at 11–12 s hits the weighted limit; later requests pass
+    // as the previous bucket's weight shrinks.
+    const arrivals = [...spread(0, 10, 8), ...spread(11, 12.4, 7), 15.5, 17, 18.5, 21, 23, 25];
+    const accepted = {};
+    const reqs = arrivals.map((t) => {
+      const b = Math.floor(t / WIN), w = 1 - (t - b * WIN) / WIN;
+      const ok = (accepted[b] ?? 0) + (accepted[b - 1] ?? 0) * w < LIMIT;
+      if (ok) accepted[b] = (accepted[b] ?? 0) + 1;
+      return { t, b, ok };
+    });
+
+    for (let v = 0; v <= END; v += 5) {
+      el('line', { x1: x(v), x2: x(v), y1: TOP, y2: AXIS, class: 'sv-grid' }, svg);
+      el('text', { x: x(v), y: AXIS + 24, class: 'sv-tick', 'text-anchor': 'middle' }, svg, `${v}s`);
+    }
+    el('line', { x1: L, x2: W - R, y1: AXIS, y2: AXIS, class: 'sv-axis' }, svg);
+    [10, 20].forEach((v) => el('line', { x1: x(v), x2: x(v), y1: 34, y2: AXIS, class: 'sv-dash' }, svg));
+    el('text', { x: L - 16, y: LANE_OK + 4.5, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'accepted');
+    el('text', { x: L - 16, y: LANE_REJ + 4.5, class: 'sv-lbl-sm', 'text-anchor': 'end' }, svg, 'rejected · 429');
+    const headers = [0, 1, 2].map((i) => el('text', { x: x(i * WIN + WIN / 2), y: 46, 'text-anchor': 'middle' }, svg));
+    const calc = el('text', { x: L, y: 18 }, svg);
+
+    const winRect = el('rect', { y: TOP, height: LANE_REJ - 34 - TOP, rx: 8, class: 'sv-box-hot', 'fill-opacity': 0.35 }, svg);
+    const overlap = el('rect', { y: TOP, height: LANE_REJ - 34 - TOP, class: 'sv-carry', 'fill-opacity': 0.7 }, svg);
+    const wLbl = el('text', { y: TOP + 20, class: 'sv-hot', 'text-anchor': 'middle' }, svg);
+    const dots = reqs.map((r) => {
+      const g = el('g', {}, svg);
+      const cx = x(r.t), d = 5;
+      const c = el('circle', { cx, r: 7 }, g);
+      const strike = r.ok ? null : el('path', { d: `M${cx - d} ${LANE_REJ - d}L${cx + d} ${LANE_REJ + d}M${cx + d} ${LANE_REJ - d}L${cx - d} ${LANE_REJ + d}`, class: 'sv-strike', style: 'stroke-width:2' }, g);
+      return { ...r, c, strike };
+    });
+    const nowLine = el('line', { y1: TOP - 4, y2: AXIS, class: 'sv-line' }, svg);
+    const nowLbl = el('text', { y: AXIS - 8, class: 'sv-hot' }, svg);
+
+    function render(now) {
+      const b = Math.floor(Math.min(now, END - 1e-9) / WIN), start = b * WIN;
+      const elapsed = now - start, w = 1 - elapsed / WIN;
+      const countIn = (i) => reqs.filter((r) => r.ok && r.b === i && r.t <= now).length;
+      const curr = countIn(b), prev = countIn(b - 1), est = curr + prev * w;
+
+      calc.setAttribute('class', est >= LIMIT ? 'sv-risk' : 'sv-hot');
+      calc.textContent = `x = ${fmt(elapsed, 1)} s  →  ${curr} + ${prev} × (1 − ${fmt(elapsed, 1)}/10) = ${fmt(est, 1)} / ${LIMIT}`;
+      headers.forEach((h, i) => {
+        h.setAttribute('class', i === b ? 'sv-hot' : i === b - 1 ? 'sv-lbl' : 'sv-lbl-sm');
+        h.textContent = `${i * WIN}–${(i + 1) * WIN} s bucket: ${countIn(i)}${i === b - 1 ? ` × ${fmt(w, 2)}` : ''}`;
+      });
+
+      const from = Math.max(0, now - WIN);
+      winRect.setAttribute('x', x(from));
+      winRect.setAttribute('width', x(now) - x(from));
+      const hasPrev = b >= 1 && w > 0;
+      overlap.setAttribute('x', x(from));
+      overlap.setAttribute('width', hasPrev ? x(start) - x(from) : 0);
+      wLbl.setAttribute('x', (x(from) + x(start)) / 2);
+      wLbl.textContent = hasPrev && x(start) - x(from) > 44 ? `× ${fmt(w, 2)}` : '';
+
+      nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
+      nowLbl.setAttribute('x', x(now) + 6);
+      nowLbl.setAttribute('text-anchor', now > END - 4 ? 'end' : 'start');
+      nowLbl.setAttribute('dx', now > END - 4 ? -12 : 0);
+      nowLbl.textContent = `now ${fmt(now, 1)} s`;
+
+      dots.forEach(({ t, b: rb, ok, c, strike }) => {
+        if (now < t) {
+          c.setAttribute('cy', LANE_OK); c.setAttribute('class', 'sv-dash');
+          if (strike) strike.style.opacity = 0;
+        } else if (ok) {
+          c.setAttribute('cy', LANE_OK);
+          c.setAttribute('class', rb === b ? 'sv-mark' : rb === b - 1 ? 'sv-ink' : 'sv-old');
+        } else {
+          const p = Math.min(1, (now - t) / DROP), ease = 1 - Math.pow(1 - p, 3);
+          c.setAttribute('cy', LANE_OK + (LANE_REJ - LANE_OK) * ease); c.setAttribute('class', 'sv-box-risk');
+          strike.style.opacity = p === 1 ? 1 : 0;
+        }
+      });
+    }
+
+    timeline({ svg, prefix: 'swc', end: END, speed: SPEED, render });
+  }
+
+  tokenGantt($('gantt'), tokenBucket($('tb-bucket')));
+  leakyMotion();
   fixedWindowChart($('fixed'), { w1: spread(0, 10, 10), w2: spread(10, 20, 11) });
   fixedWindowChart($('fixed-boundary'), { w1: spread(7.5, 10, 10), w2: spread(10, 12.5, 10), zone: [7.5, 12.5] });
-  slidingCounter();
   slidingWindowAnim();
+  slidingCounterAnim();
   bucketFlows($('bucket-flows'));
 })();
 </script>

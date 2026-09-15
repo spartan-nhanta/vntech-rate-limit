@@ -82,29 +82,6 @@
   <div class="foot"><span>5 / 52</span><span>definition · key, limit, window</span></div>
 </section>
 
-<section class="slide" data-section="three-concepts">
-  <div class="eyebrow"><svg class="ic"><use href="#ic-scale"/></svg>Three words people mix up</div>
-  <h2>Ask one question: what happens to the request that goes over?</h2>
-  <div class="body meter" style="justify-content:center;">
-    <table class="tbl dense">
-      <thead><tr><th></th><th>Rate limiting</th><th>Throttling</th><th>Load shedding</th></tr></thead>
-      <tbody>
-        <tr><td class="name">Over-limit request</td><td>Reject now · <code>429</code></td><td>Delay · queue or sleep</td><td>Drop · <code>503</code></td></tr>
-        <tr><td class="name">Decides on</td><td>Counter per key: user, API key, IP</td><td>Target rate of the downstream</td><td>Server health: in-flight, CPU, p99</td></tr>
-        <tr><td class="name">Protects</td><td>Other clients (fairness)</td><td>Downstream: DB, SMS gateway</td><td>The service itself</td></tr>
-        <tr><td class="name">Algorithm</td><td>Token bucket, sliding window</td><td>Leaky bucket, blocking acquire</td><td>Concurrency limit, AIMD, priority</td></tr>
-        <tr><td class="name">Client should</td><td>Wait for <code>Retry-After</code>, then retry</td><td>Nothing, it just waits</td><td>Retry with backoff + jitter</td></tr>
-        <tr><td class="name">Seen in</td><td>API gateway, Kong, Stripe API</td><td>Kafka consumers, workers</td><td>Envoy, load balancers, gRPC servers</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <ul class="points tight" data-step="1">
-    <li><b>In HTTP APIs the words are used interchangeably.</b> AWS API Gateway calls its <code>429</code> "throttling"; GitHub and Stripe call it "rate limiting". Both reject, neither delays.</li>
-    <li><b>Throttling in the strict sense</b> needs something that can wait, like a worker reading from a queue. The next slide shows one.</li>
-  </ul>
-  <div class="foot"><span>6 / 52</span><span>rate limiting vs. throttling vs. load shedding</span></div>
-</section>
-
 <section class="slide" data-section="real-throttling">
   <div class="eyebrow"><svg class="ic"><use href="#ic-valve"/></svg>Throttling in an async system</div>
   <h2>A worker that slows itself down instead of rejecting</h2>
@@ -147,7 +124,7 @@
       <li data-step="2">The limiter lives in Redis so that adding a second worker doesn't double the send rate.</li>
     </ul>
   </div>
-  <div class="foot"><span>7 / 52</span><span>throttling · async worker</span></div>
+  <div class="foot"><span>6 / 52</span><span>throttling · async worker</span></div>
 </section>
 
 <section class="slide" data-section="status-codes">
@@ -170,5 +147,5 @@ X-RateLimit-Reset: 1704067320  <span class="c"># unix time of reset</span></pre>
       <li data-step="1">Send <code>X-RateLimit-Remaining</code> on <b>successful</b> responses too, so well-behaved clients can slow down before they ever get a <code>429</code>.</li>
     </ul>
   </div>
-  <div class="foot"><span>8 / 52</span><span>status codes &amp; headers</span></div>
+  <div class="foot"><span>7 / 52</span><span>status codes &amp; headers</span></div>
 </section>

@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 3</div>
   <h2>Distributed state</h2>
   <p class="lead">Why Redis, why Lua — the foundation every algorithm in the next section is built on.</p>
-  <div class="foot"><span>18 / 52</span><span>act iii · distributed state</span></div>
+  <div class="foot"><span>17 / 52</span><span>act iii · distributed state</span></div>
 </section>
 
 <section class="slide" data-section="multi-pod">
@@ -28,37 +28,42 @@
       <defs><marker id="arrow-mp" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
     </svg>
   </div>
-  <div class="foot"><span>19 / 52</span><span>distributed state · the problem</span></div>
+  <div class="foot"><span>18 / 52</span><span>distributed state · the problem</span></div>
 </section>
 
 <section class="slide" data-section="race">
   <div class="eyebrow"><svg class="ic"><use href="#ic-lock"/></svg>3.2 · Race &amp; fix</div>
   <h2>GET then SET from two pods lets both requests through. One Lua script fixes it.</h2>
-  <div class="split even">
-    <div class="stack">
-      <div class="code-label">Race · GET and SET are two round trips</div>
-      <pre class="code"><span class="c"># tokens left = 1</span>
-Pod A  GET tokens   → 1
-Pod B  GET tokens   → 1   <span class="c"># both see 1</span>
-Pod A  SET tokens 0 → allow
-<span class="hl">Pod B  SET tokens 0 → allow</span>  <span class="chip risk" style="margin-left:6px;">should be 429</span></pre>
-      <p style="margin:0; color:var(--body); font-size:16.5px;">Both pods read before either writes. One request slips through.</p>
-    </div>
-    <div class="stack" data-step="1">
-      <div class="code-label">Fix · read + decide + write in one script</div>
-      <pre class="code"><span class="c">-- Redis runs the whole script,</span>
-<span class="c">-- nothing runs in between</span>
-local t = tonumber(redis.call('GET', KEYS[1]))
-          or tonumber(ARGV[1])  <span class="c">-- capacity</span>
+  <div class="stack" style="flex:1; gap:18px;">
+    <div class="stack" data-step="1" style="gap:10px;">
+      <div class="code-label">Fix · read + decide + write in one Lua script</div>
+      <pre class="code" style="font-size:13px; line-height:1.55; padding:12px 18px;">local t = tonumber(redis.call('GET', KEYS[1])) or tonumber(ARGV[1])  <span class="c">-- no key yet = full bucket</span>
 if t &gt;= 1 then
   redis.call('SET', KEYS[1], t - 1)
   return 1  <span class="c">-- allow</span>
 end
 return 0    <span class="c">-- 429</span></pre>
-      <p style="margin:0; color:var(--body); font-size:16.5px;">Pod B's script waits for Pod A's, reads <code>0</code>, and returns <code>429</code>.</p>
+    </div>
+    <div class="split even" style="align-items:start; gap:28px;">
+      <div class="stack" style="gap:10px;">
+        <div class="code-label">Without Lua · GET and SET are separate commands</div>
+        <pre class="code" style="font-size:13.5px;"><span class="c"># tokens left = 1</span>
+Pod A  GET tokens   → 1
+Pod B  GET tokens   → 1   <span class="c"># both see 1</span>
+Pod A  SET tokens 0 → allow
+<span class="hl">Pod B  SET tokens 0 → allow</span>  <span class="chip risk" style="margin-left:6px;">should be 429</span></pre>
+      </div>
+      <div class="stack" data-step="1" style="gap:10px;">
+        <div class="code-label">With Lua · Redis runs one script at a time</div>
+        <pre class="code" style="font-size:13.5px;"><span class="c"># tokens left = 1</span>
+Pod A  script: GET  → 1
+Pod A  script: SET 0 → allow
+Pod B  script: GET  → 0   <span class="c"># starts after A ends</span>
+<span class="hl">Pod B  script: return 0 → 429</span>  <span class="chip ok" style="margin-left:6px;">correct</span></pre>
+      </div>
     </div>
   </div>
-  <div class="foot"><span>20 / 52</span><span>atomicity · Lua scripts</span></div>
+  <div class="foot"><span>19 / 52</span><span>atomicity · Lua scripts</span></div>
 </section>
 
 <section class="slide" data-section="hash-tags">
@@ -76,6 +81,6 @@ rl:user_456:curr  <span class="c">→ node B</span>  <span class="chip risk" sty
 <span class="hl">rl:{user_456}:curr</span>  <span class="c">→ hash "user_456" → node B</span>  <span class="chip ok" style="margin-left:6px;">same node</span></pre>
     <p style="color:var(--body); font-size:16.5px; line-height:1.55;">Two related keys on two different cluster nodes make the Lua script that needs both of them fail outright with a <code>CROSSSLOT</code> error. Wrapping the shared part of the key in <code>{}</code> tells Redis to hash only that substring, guaranteeing every key sharing it lands on the same node — and the script stays legal.</p>
   </div>
-  <div class="foot"><span>21 / 52</span><span>redis cluster · hash tags</span></div>
+  <div class="foot"><span>20 / 52</span><span>redis cluster · hash tags</span></div>
 </section>
 

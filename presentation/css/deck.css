@@ -201,6 +201,10 @@ code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-al
   padding-top: 13px; border-top: 1px solid var(--hairline-soft);
   font-family: var(--mono); font-size: 12.5px; color: var(--muted);
 }
+.foot a { color: var(--accent-strong); font-weight: 600; text-decoration: none; }
+/* presenter cue: switch to the live demo (client + admin, local backend + Redis) */
+.foot .demo-cue { color: var(--accent-strong); font-weight: 600; }
+.foot a:hover { text-decoration: underline; }
 
 /* ---------- code ---------- */
 .code {
@@ -287,6 +291,16 @@ svg text { font-family: var(--sans); }
 .sv-carry { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .sv-strike { stroke: var(--reject); stroke-width: 1.5; }
 
+/* numbered request coins: toggle .old (leaked out) and .risk (429) on the <g class="coin"> */
+.coin circle { fill: var(--accent); stroke: var(--accent-strong); stroke-width: 1; }
+.coin text { fill: var(--surface); font-family: var(--mono); font-size: 9px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.coin.lg text { font-size: 11px; }
+.coin.old circle { fill: var(--surface-alt); stroke: var(--muted-soft); }
+.coin.old text { fill: var(--muted); }
+.coin.risk circle { fill: var(--reject-wash); stroke: var(--reject); stroke-width: 1.5; }
+.coin.risk text { fill: var(--reject); }
+.coin-move { transition: transform 0.35s ease, opacity 0.2s ease; }
+
 /* ---------- controls ---------- */
 .seg { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-alt); align-self: flex-start; }
 .seg button {
@@ -311,6 +325,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-stro
 .scrub .seg button { width: 86px; }
 .scrub input { flex: 1; accent-color: var(--accent-strong); margin: 0; }
 .scrub .readout { width: 110px; text-align: right; }
+/* 12ch fits "now 2000 ms" / "now 12.8 s" on one line; the slider takes the rest */
+.scrub .readout.compact { width: 12ch; flex: none; white-space: nowrap; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.scrub .readout.compact b { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); }
 
 /* ---------- section dividers ---------- */
 .divider { justify-content: center; gap: 28px; }
@@ -414,7 +431,7 @@ body.overview [data-step] { opacity: 1; transform: none; }
 body.overview .progress, body.overview .pager { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-step], .sv-bar, .progress i { transition: none; }
+  [data-step], .sv-bar, .progress i, .coin-move { transition: none; }
 }
 
 @media print {
