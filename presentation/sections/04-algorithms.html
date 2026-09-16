@@ -10,7 +10,7 @@
       <li><b>Bucket</b> — split burst and rate into separate params.</li>
     </ul>
   </div>
-  <div class="foot"><span>21 / 52</span><span>act iv · algorithms</span></div>
+  <div class="foot"><span>21 / 56</span><span>act iv · algorithms</span></div>
 </section>
 
 <section class="slide" data-section="window-family">
@@ -51,7 +51,7 @@
     </svg>
     <figcaption>A <code>10 / minute</code> window accepts both rows: it has <b>one</b> number, so burst is always the whole limit.</figcaption>
   </div>
-  <div class="foot"><span>22 / 52</span><span>window family · burst vs. rate</span></div>
+  <div class="foot"><span>22 / 56</span><span>window family · burst vs. rate</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window">
@@ -67,7 +67,7 @@
       <li><span class="chip risk">429</span> Request #11 in the same window is rejected until the counter resets at the next window.</li>
     </ul>
   </div>
-  <div class="foot"><span>23 / 52</span><span>fixed window counter</span></div>
+  <div class="foot"><span>23 / 56</span><span>fixed window counter</span></div>
 </section>
 
 <section class="slide" data-section="fixed-window-boundary">
@@ -80,7 +80,7 @@
       <figcaption><span class="chip risk">boundary attack</span> <span class="chip risk">2× the limit</span> <span class="chip">counter resets on the clock</span></figcaption>
     </div>
   </div>
-  <div class="foot"><span>24 / 52</span><span class="demo-cue" data-step="2">▶ See the demo · Boundary attack</span><span>fixed window · boundary attack</span></div>
+  <div class="foot"><span>24 / 56</span><span class="demo-cue" data-step="2">▶ See the demo · Boundary attack</span><span>fixed window · boundary attack</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log-motion">
@@ -98,7 +98,7 @@
       <div class="legend"><span><i class="lg-dot"></i>in window</span><span><i class="lg-dot old"></i>aged out</span><span><i class="lg-dot future"></i>not arrived yet</span><span><i class="lg-dot risk"></i>429, not logged</span></div>
     </div>
   </div>
-  <div class="foot"><span>25 / 52</span><span>sliding window log · in motion</span></div>
+  <div class="foot"><span>25 / 56</span><span>sliding window log · in motion</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log">
@@ -132,7 +132,7 @@
       <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window resets at 00:10 and lets all five through.</p>
     </div>
   </div>
-  <div class="foot"><span>26 / 52</span><span>sliding window log</span></div>
+  <div class="foot"><span>26 / 56</span><span>sliding window log</span></div>
 </section>
 
 <section class="slide" data-section="sliding-log-cost">
@@ -151,7 +151,7 @@
     </table>
     <p style="margin:0; font-size:16.5px; color:var(--body);">A fixed window stores <b>one counter</b> per key, whatever the traffic. Use the log only where an exact count is worth the RAM, like billing.</p>
   </div>
-  <div class="foot"><span>27 / 52</span><span class="demo-cue">▶ See the demo · Out of space</span><span>sliding window log · memory</span></div>
+  <div class="foot"><span>27 / 56</span><span class="demo-cue">▶ See the demo · Out of space</span><span>sliding window log · memory</span></div>
 </section>
 
 <section class="slide" data-section="sliding-counter-motion">
@@ -169,7 +169,7 @@
       <div class="legend"><span><i class="lg-dot"></i>current bucket · counted</span><span><i class="lg-dot ink"></i>previous bucket · × weight</span><span><i class="lg-dot old"></i>older · ignored</span><span><i class="lg-dot future"></i>not arrived yet</span><span><i class="lg-dot risk"></i>429</span></div>
     </div>
   </div>
-  <div class="foot"><span>28 / 52</span><span class="demo-cue">▶ See the demo · Prevent the boundary attack and Redis space</span><span>sliding window counter · in motion</span></div>
+  <div class="foot"><span>28 / 56</span><span class="demo-cue">▶ See the demo · Prevent the boundary attack and Redis space</span><span>sliding window counter · in motion</span></div>
 </section>
 
 <section class="slide" data-section="window-comparison">
@@ -187,7 +187,7 @@
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>29 / 52</span><span>window family · summary</span></div>
+  <div class="foot"><span>29 / 56</span><span>window family · summary</span></div>
 </section>
 
 <section class="slide" data-section="bucket-family">
@@ -204,7 +204,7 @@
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>30 / 52</span><span>bucket family · burst and rate split</span></div>
+  <div class="foot"><span>30 / 56</span><span>bucket family · burst and rate split</span></div>
 </section>
 
 <section class="slide" data-section="token-bucket">
@@ -224,7 +224,7 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span>31 / 52</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/token-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
+  <div class="foot"><span>31 / 56</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/token-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
 </section>
 
 <section class="slide" data-section="token-bucket-rules">
@@ -238,7 +238,7 @@
       <li><span class="chip risk">429</span> <b>Fewer than 1 token → reject.</b> <code>Retry-After = (1 − tokens) / rate</code>, so the client knows exactly when a token will be there.</li>
     </ul>
   </div>
-  <div class="foot"><span>32 / 52</span><span>token bucket · fractional tokens, lazy refill, 429</span></div>
+  <div class="foot"><span>32 / 56</span><span>token bucket · fractional tokens, lazy refill, 429</span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket">
@@ -279,7 +279,7 @@
     </ul>
     </div>
   </div>
-  <div class="foot"><span>33 / 52</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
+  <div class="foot"><span>33 / 56</span><span>leaky bucket · outbound to a 3rd-party API</span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket-motion">
@@ -299,7 +299,7 @@
       </div>
     </div>
   </div>
-  <div class="foot"><span>34 / 52</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/rl-leaky-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
+  <div class="foot"><span>34 / 56</span><span>Other example animation → <a href="https://algomaster.io/animations/system-design/rl-leaky-bucket" target="_blank" rel="noopener">Open ↗</a></span></div>
 </section>
 
 <section class="slide" data-section="leaky-bucket-full">
@@ -346,7 +346,7 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>35 / 52</span><span>leaky bucket · full tank → 429</span></div>
+  <div class="foot"><span>35 / 56</span><span>leaky bucket · full tank → 429</span></div>
 </section>
 
 <section class="slide" data-section="token-vs-leaky">
@@ -372,7 +372,7 @@ water += 1</pre>
       <li><span class="chip risk">where they differ</span> Leaky bucket as a <b>real queue</b> delays requests instead of rejecting them — that's what makes output smooth.</li>
     </ul>
   </div>
-  <div class="foot"><span>36 / 52</span><span>token vs. leaky bucket</span></div>
+  <div class="foot"><span>36 / 56</span><span>token vs. leaky bucket</span></div>
 </section>
 
 <section class="slide" data-section="bucket-flows">
@@ -384,7 +384,7 @@ water += 1</pre>
       <svg id="bucket-flows" aria-label="Input and output timelines for token bucket and leaky bucket"></svg>
     </div>
   </div>
-  <div class="foot"><span>37 / 52</span><span>token vs. leaky bucket · flows</span></div>
+  <div class="foot"><span>37 / 56</span><span>token vs. leaky bucket · flows</span></div>
 </section>
 
 <section class="slide" data-section="algo-comparison">
@@ -402,7 +402,7 @@ water += 1</pre>
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>38 / 52</span><span>algorithm comparison</span></div>
+  <div class="foot"><span>38 / 56</span><span>algorithm comparison</span></div>
 </section>
 
 <script>

@@ -16,6 +16,7 @@
 5. [System Design — Thiết kế Rate Limiter phân tán](#5-system-design)
 6. [Demo — Bài toán thực tế](#6-demo)
 7. [Checkpoint Questions](#7-checkpoint-questions)
+8. [Case Study — Kiểm định một hệ thống thật](#8-case-study)
 
 ---
 
@@ -960,6 +961,73 @@ Cả Admin và Client đều subscribe `GET /events` — cùng xem log của t�
 > 4. **Redis Cluster gần hơn** — deploy Redis cùng AZ với application, latency từ 5ms xuống 0.5ms
 >
 > 5. **Pipeline** — gộp nhiều lệnh Redis vào 1 round-trip (chỉ áp dụng được với non-Lua operations)
+
+---
+
+## 8. Case Study
+
+**P2:** Phần này không phải ví dụ minh hoạ — đây là kết quả đọc code thật của một hệ thống fintech
+đang chạy production. Ba câu hỏi: (1) rate limiting và chống bot được áp dụng ở đâu, (2) một token
+bucket thật trông ra sao trong code, và (3) khi vượt limit rồi thì hệ thống phản ứng cụ thể thế
+nào — không chỉ "trả 429" chung chung.
+
+### 8.1 Rate limiting và reCAPTCHA — phủ không đều
+
+Bốn endpoint thật đều có rate limiting: đăng nhập, xác thực OTP, API cho partner, và form nộp hồ
+sơ công khai. Nhưng chỉ **một** trong bốn — form nộp hồ sơ — có thêm lớp reCAPTCHA v3.
+
+```
+Đăng nhập ────────┐
+Xác thực OTP ──────┼──→ Rate Limiting (mọi endpoint đều có)
+API Partner ───────┤
+Form nộp hồ sơ ────┴──→ Rate Limiting + reCAPTCHA v3 (chỉ endpoint này)
+```
+
+Hai vấn đề:
+- **Sai chỗ:** đăng nhập và OTP — nơi hay bị brute-force nhất — lại là 2 chỗ **không có CAPTCHA**,
+  chỉ dựa vào đếm số lượng.
+- **Chưa dùng hết:** reCAPTCHA v3 trả về **điểm tin cậy** (0.0–1.0), nhưng backend chỉ kiểm tra
+  token có hợp lệ hay không (`success == true`), **không đọc điểm số**. Tính năng đắt giá nhất của
+  v3 — chấm điểm bot — đang bị bỏ phí.
+
+> **Bài học:** rate limiting đếm *số lượng*, CAPTCHA đánh giá *độ tin cậy* — 2 lớp bổ sung nhau.
+> Có đủ cả hai không có nghĩa là được bảo vệ tốt, nếu đặt sai chỗ hoặc không dùng hết khả năng.
+
+### 8.2 Token bucket thật trong production — 2 lớp, không phải 1
+
+Khi hệ thống gọi ra một API bên thứ ba, có **2 lớp phòng thủ xếp chồng lên nhau**, không chỉ một:
+
+1. **Pacer (chủ động)** — chạy **trước** mỗi lần gọi. Giữ một thùng token, mỗi lần gọi phải lấy
+   1 token; hết token thì tự ngủ đúng phần thiếu trước khi gọi tiếp. Mục tiêu: **đừng bao giờ để
+   bị 429**.
+2. **Gate (phản ứng)** — chạy **sau**, chỉ hoạt động khi *đã* bị 429 một lần. Đóng lại một cánh
+   cổng dùng chung cho toàn bộ process trong một khoảng thời gian — một luồng bị 429 thì mọi luồng
+   khác đang chờ đều biết ngay, không ai phải tự dò limit bằng cách lần lượt bị từ chối.
+
+```
+Outbound call → Pacer.acquire() → Gate.remaining() → gọi vendor → Error Decoder
+                  (token bucket)      (kiểm tra                      │
+                                       đã đóng cổng                  ├─ 2xx → xong
+                                       hay chưa)                     └─ 429 → Gate.close(backoff)
+```
+
+### 8.3 "Park" là gì — không chỉ là chờ Retry-After
+
+`Retry-After` chỉ là **1 con số** vendor gửi kèm response. "Park" là **toàn bộ quy trình** phản
+ứng với con số đó, không phải bản thân con số:
+
+1. **Nhả tài nguyên trước khi chờ** — trả lại phần việc đang giữ dở về hàng chờ, *trước khi* ngủ.
+   Lý do: nếu vẫn giữ mà ngủ, worker ngừng gửi tín hiệu "còn sống" → hệ thống điều phối có thể
+   tưởng nó đã chết, thu hồi luôn cả phần việc khác nó đang giữ.
+2. **Không tin tuyệt đối vào con số vendor gửi** — có trần chờ tối đa (VD 60 giây), dù vendor nói
+   chờ lâu hơn cũng chỉ chờ tối đa mức trần, để không phá vỡ cơ chế "còn sống" ở bước 1.
+3. **Hết tin sau vài lần sai** — nếu chờ đúng theo lời vendor rồi vẫn bị 429 tiếp, liên tiếp vài
+   lần, nghĩa là con số vendor gửi không phản ánh đúng thực tế → bỏ qua hẳn con số đó, chờ luôn
+   mức trần an toàn nhất.
+
+> **Một câu:** Retry-After là dữ liệu đầu vào; park là cả một chiến lược xử lý dữ liệu đó một cách
+> an toàn — không tin mù quáng, không giữ tài nguyên trong lúc chờ, không tính là một lần thất
+> bại thật sự.
 
 ---
 

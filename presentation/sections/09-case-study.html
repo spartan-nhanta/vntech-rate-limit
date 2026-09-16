@@ -1,0 +1,53 @@
+<!-- ============ SECTION 9 — CASE STUDY ============ -->
+<section class="slide divider" data-section="divider-09">
+  <div class="divider-num">09</div>
+  <div class="section-tag"><i></i>SECTION 9</div>
+  <h2>Case study</h2>
+  <p class="lead">A real audit of a production system: where rate limiting is applied, where it isn't, and what happens when it fires.</p>
+  <div class="foot"><span>53 / 56</span><span>act ix · case study</span></div>
+</section>
+
+<section class="slide" data-section="case-study-gap">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-search"/></svg>A real audit, not a hypothetical</div>
+  <h2>Rate limiting alone doesn't stop a bot</h2>
+  <div class="body" style="min-height:0;">
+    <div class="diagram-embed">
+      <iframe src="diagrams/loanbud-defense-gap.html" loading="lazy" title="Interactive: two defenses, mismatched coverage"></iframe>
+    </div>
+    <div class="diagram-caption">
+      <span>Every endpoint here is rate-limited. Only one reaches a bot-detection layer — and that layer's score is never read.</span>
+      <a href="diagrams/loanbud-defense-gap.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    </div>
+  </div>
+  <div class="foot"><span>54 / 56</span><span>case study · defense coverage</span></div>
+</section>
+
+<section class="slide" data-section="case-study-pacer">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-bucket"/></svg>Use case · outbound token bucket</div>
+  <h2>Proactive pacing, reactive gate — same vendor call</h2>
+  <div class="body" style="min-height:0;">
+    <div class="diagram-embed">
+      <iframe src="diagrams/lendingwise-pacer-gate.html" loading="lazy" title="Interactive: rate pacer and gate"></iframe>
+    </div>
+    <div class="diagram-caption">
+      <span>Two real classes: a token-bucket pacer runs before every call, a shared circuit gate closes for the whole process after a 429.</span>
+      <a href="diagrams/lendingwise-pacer-gate.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    </div>
+  </div>
+  <div class="foot"><span>55 / 56</span><span>case study · token bucket in production</span></div>
+</section>
+
+<section class="slide" data-section="case-study-park">
+  <div class="eyebrow"><svg class="ic"><use href="#ic-server"/></svg>Use case · the worker's response</div>
+  <h2>What "park" actually means</h2>
+  <div class="body" style="min-height:0;">
+    <div class="diagram-embed">
+      <iframe src="diagrams/worker-lw-sync-park.html" loading="lazy" title="Interactive: a worker's park() flow"></iframe>
+    </div>
+    <div class="diagram-caption">
+      <span>Retry-After is one number the vendor sends. Park is the whole response to it: release the lease, decide how long to wait, then sleep — never block while still holding work.</span>
+      <a href="diagrams/worker-lw-sync-park.html" target="_blank" rel="noopener">Open full screen ↗</a>
+    </div>
+  </div>
+  <div class="foot"><span>56 / 56</span><span>case study · park()</span></div>
+</section>

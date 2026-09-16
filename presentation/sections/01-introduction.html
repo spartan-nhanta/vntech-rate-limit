@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 1</div>
   <h2>Introduction</h2>
   <p class="lead">Why an API needs a limit, what to call the different kinds of limits, and what the server sends back when a client hits one.</p>
-  <div class="foot"><span>3 / 52</span><span>act i · introduction</span></div>
+  <div class="foot"><span>3 / 56</span><span>act i · introduction</span></div>
 </section>
 
 <section class="slide" data-section="why-limit">
@@ -54,7 +54,7 @@
     </svg>
     <figcaption>Without a limit, the server only sees total load. A bug and an attack look the same, and one bad client is enough to take the API down for everyone.</figcaption>
   </div>
-  <div class="foot"><span>4 / 52</span><span>why rate limiting exists</span></div>
+  <div class="foot"><span>4 / 56</span><span>why rate limiting exists</span></div>
 </section>
 
 <section class="slide" data-section="what-is-rate-limiting">
@@ -79,7 +79,7 @@
       <li data-step="1">The bad client now hits <b>its own</b> limit. <code>user_B</code> and everyone else keep getting <code>200</code>, and the server stays healthy.</li>
     </ul>
   </div>
-  <div class="foot"><span>5 / 52</span><span>definition · key, limit, window</span></div>
+  <div class="foot"><span>5 / 56</span><span>definition · key, limit, window</span></div>
 </section>
 
 <section class="slide" data-section="real-throttling">
@@ -124,7 +124,7 @@
       <li data-step="2">The limiter lives in Redis so that adding a second worker doesn't double the send rate.</li>
     </ul>
   </div>
-  <div class="foot"><span>6 / 52</span><span>throttling · async worker</span></div>
+  <div class="foot"><span>6 / 56</span><span>throttling · async worker</span></div>
 </section>
 
 <section class="slide" data-section="status-codes">
@@ -147,5 +147,5 @@ X-RateLimit-Reset: 1704067320  <span class="c"># unix time of reset</span></pre>
       <li data-step="1">Send <code>X-RateLimit-Remaining</code> on <b>successful</b> responses too, so well-behaved clients can slow down before they ever get a <code>429</code>.</li>
     </ul>
   </div>
-  <div class="foot"><span>7 / 52</span><span>status codes &amp; headers</span></div>
+  <div class="foot"><span>7 / 56</span><span>status codes &amp; headers</span></div>
 </section>

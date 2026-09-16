@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 2</div>
   <h2>Implementation layers</h2>
   <p class="lead">Rate limiting isn't one place — it belongs at several layers at once, each stopping a different class of problem.</p>
-  <div class="foot"><span>8 / 52</span><span>act ii · implementation layers</span></div>
+  <div class="foot"><span>8 / 56</span><span>act ii · implementation layers</span></div>
 </section>
 
 <section class="slide" data-section="topology">
@@ -19,7 +19,7 @@
       <a href="diagrams/request-topology.html" target="_blank" rel="noopener">Open full screen ↗</a>
     </div>
   </div>
-  <div class="foot"><span>9 / 52</span><span>architecture</span></div>
+  <div class="foot"><span>9 / 56</span><span>architecture</span></div>
 </section>
 
 <section class="slide" data-section="client-side">
@@ -104,7 +104,7 @@
       </svg>
     </div>
   </div>
-  <div class="foot"><span>10 / 52</span><span>client-side · debounce, batch, backoff</span></div>
+  <div class="foot"><span>10 / 56</span><span>client-side · debounce, batch, backoff</span></div>
 </section>
 
 <section class="slide" data-section="herd">
@@ -125,7 +125,7 @@
     </div>
     <p class="readout" id="herd-readout"></p>
   </div>
-  <div class="foot"><span>11 / 52</span><span>jitter · simulated, per AWS's "Exponential Backoff and Jitter"</span></div>
+  <div class="foot"><span>11 / 56</span><span>jitter · simulated, per AWS's "Exponential Backoff and Jitter"</span></div>
 </section>
 
 <section class="slide" data-section="retry-after">
@@ -142,7 +142,7 @@
     </div>
     <p class="readout" id="ra-readout"></p>
   </div>
-  <div class="foot"><span>12 / 52</span><span>Retry-After · jitter</span></div>
+  <div class="foot"><span>12 / 56</span><span>Retry-After · jitter</span></div>
 </section>
 
 <section class="slide" data-section="edge-hops">
@@ -196,7 +196,7 @@
       <li><b>Using AWS API Gateway instead of ALB?</b> It adds a token bucket per route and per API key (usage plans), and returns <code>429</code>.</li>
     </ul>
   </div>
-  <div class="foot"><span>13 / 52</span><span>infrastructure · the path on EKS</span></div>
+  <div class="foot"><span>13 / 56</span><span>infrastructure · the path on EKS</span></div>
 </section>
 
 <section class="slide" data-section="aws-waf">
@@ -227,7 +227,7 @@ rule {
       <li><b>Default block is <code>403</code>.</b> Return <code>429</code> so clients back off instead of treating it as an auth error.</li>
     </ul>
   </div>
-  <div class="foot"><span>14 / 52</span><span>aws waf · rate-based rule</span></div>
+  <div class="foot"><span>14 / 56</span><span>aws waf · rate-based rule</span></div>
 </section>
 
 <section class="slide" data-section="ingress-controller">
@@ -259,7 +259,7 @@ metadata:
       <li><b>Behind the ALB, trust <code>X-Forwarded-For</code></b> (<code>trusted_ips</code>, <code>real_ip_header</code>). Otherwise every user has the ALB's IP and shares one counter.</li>
     </ul>
   </div>
-  <div class="foot"><span>15 / 52</span><span>ingress controller · algorithms</span></div>
+  <div class="foot"><span>15 / 56</span><span>ingress controller · algorithms</span></div>
 </section>
 
 <section class="slide" data-section="app-middleware">
@@ -283,7 +283,7 @@ val result = rateLimiter.check(
       <li><b>Per-API-key, not per-IP</b> — many users legitimately share one office IP; a key identifies the actual user.</li>
     </ul>
   </div>
-  <div class="foot"><span>16 / 52</span><span>application layer · business logic</span></div>
+  <div class="foot"><span>16 / 56</span><span>application layer · business logic</span></div>
 </section>
 
 <script>

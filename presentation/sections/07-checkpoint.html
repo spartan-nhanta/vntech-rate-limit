@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 7</div>
   <h2>Checkpoint questions</h2>
   <p class="lead">Three questions, easy to hard — a quick way to check the ideas actually landed.</p>
-  <div class="foot"><span>49 / 52</span><span>act vii · checkpoint questions</span></div>
+  <div class="foot"><span>49 / 56</span><span>act vii · checkpoint questions</span></div>
 </section>
 
 <section class="slide" data-section="checkpoint">
@@ -15,5 +15,5 @@
     <li data-step="1"><span class="chip hot">medium</span> <b>Why does a Fixed Window Counter let through roughly 2× traffic at a window boundary?</b><br/><span style="color:var(--muted);">→ Each window resets independently: 100 requests at <code>12:00:59</code> fill window 12:00; the clock ticks over, the counter resets to zero, and 100 more immediately after are also allowed — 200 requests in about two seconds against a 100/minute limit. A sliding window never resets abruptly, so it doesn't have this edge.</span></li>
     <li data-step="2"><span class="chip risk">hard</span> <b>A Redis round trip costs ~5ms per check. How does that cap throughput, and how would you optimize it?</b><br/><span style="color:var(--muted);">→ One thread tops out around 1000ms / 5ms = 200 req/s; 100 concurrent coroutines gets to ~20,000 req/s — not unlimited. In roughly increasing effort: <code>EVALSHA</code> instead of <code>EVAL</code>, a pooled connection, a local cache synced every ~100ms (cuts round trips ~99%, can briefly overshoot), colocating Redis in the same availability zone, and pipelining non-Lua commands where the operation allows it.</span></li>
   </ul>
-  <div class="foot"><span>50 / 52</span><span>checkpoint questions</span></div>
+  <div class="foot"><span>50 / 56</span><span>checkpoint questions</span></div>
 </section>
