@@ -4,7 +4,7 @@
   <div class="section-tag"><i></i>SECTION 5</div>
   <h2>System design</h2>
   <p class="lead">Putting it together: a worked example at 10 million users and 100,000 requests a second.</p>
-  <div class="foot"><span>39 / 56</span><span>act v · system design</span></div>
+  <div class="foot"><span>39 / 52</span><span>act v · system design</span></div>
 </section>
 
 <section class="slide" data-section="requirements">
@@ -28,7 +28,7 @@
     <li><b>Per-user limit:</b> 1,000 req/min. <b>Global limit:</b> 500,000 req/min per endpoint.</li>
     <li><b>Availability target:</b> 99.99% — the limiter itself must not become the outage.</li>
   </ul>
-  <div class="foot"><span>40 / 56</span><span>system design · requirements</span></div>
+  <div class="foot"><span>40 / 52</span><span>system design · requirements</span></div>
 </section>
 
 <section class="slide" data-section="architecture">
@@ -52,7 +52,7 @@
       <defs><marker id="arrow-arch" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" class="sv-ink"/></marker></defs>
     </svg>
   </div>
-  <div class="foot"><span>41 / 56</span><span>system design · architecture</span></div>
+  <div class="foot"><span>41 / 52</span><span>system design · architecture</span></div>
 </section>
 
 <section class="slide" data-section="sharding">
@@ -71,7 +71,7 @@
 // total_limit / 16 × 1.1   (10% buffer)</span></pre>
     <p style="color:var(--body); font-size:16.5px; line-height:1.55;">A per-user limit has a natural key and hashes to one node cleanly. A global, per-endpoint limit has no such entity — sharding it across 16 keys spreads the writes instead of hammering one hot key, trading a small amount of precision (the buffer) for throughput.</p>
   </div>
-  <div class="foot"><span>42 / 56</span><span>sharding · per-user vs. global</span></div>
+  <div class="foot"><span>42 / 52</span><span>sharding · per-user vs. global</span></div>
 </section>
 
 <section class="slide" data-section="hard-soft">
@@ -97,7 +97,7 @@ when {
   result.count &gt; softLimit -&gt; { logger.warn("approaching limit"); proceed() }
   else -&gt; proceed()
 }</pre>
-  <div class="foot"><span>43 / 56</span><span>hard limit vs. soft limit</span></div>
+  <div class="foot"><span>43 / 52</span><span>hard limit vs. soft limit</span></div>
 </section>
 
 <section class="slide" data-section="fail-open-closed">
@@ -117,7 +117,7 @@ when {
       <p>Protects billing and security, drops availability to zero for the duration. Chosen when letting anything unmetered through is worse than an outage — payment and quota enforcement, mostly.</p>
     </div>
   </div>
-  <div class="foot"><span>44 / 56</span><span>fail-open vs. fail-closed</span></div>
+  <div class="foot"><span>44 / 52</span><span>fail-open vs. fail-closed</span></div>
 </section>
 
 <section class="slide" data-section="outbound-429">
@@ -140,7 +140,7 @@ when {
   <div class="body" style="flex:0;" data-step="1">
     <div class="legend"><span><i class="lg-bar"></i>pacer draining evenly, ahead of the limit</span><span><i class="lg-dot" style="background:var(--reject)"></i>429 → gate closes for a bounded window</span></div>
   </div>
-  <div class="foot"><span>45 / 56</span><span>client-side backpressure</span></div>
+  <div class="foot"><span>45 / 52</span><span>client-side backpressure</span></div>
 </section>
 
 <section class="slide" data-section="backoff-table">
@@ -156,5 +156,5 @@ when {
       </tbody>
     </table>
   </div>
-  <div class="foot"><span>46 / 56</span><span>backoff schedules</span></div>
+  <div class="foot"><span>46 / 52</span><span>backoff schedules</span></div>
 </section>

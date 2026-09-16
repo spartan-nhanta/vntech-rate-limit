@@ -11,7 +11,7 @@ js/charts-lib.js    shared SVG helpers, exposed as window.Charts
 js/deck.js          presenter engine: keys, data-step reveals, overview, theme
 sections/NN-*.html  slide content — one file per section, most edits happen here
 diagrams/*.html     interactive diagrams, embedded via <iframe>
-demo.html           standalone demo page, linked from sections/06-demo.html
+demo.html           standalone demo page (not currently linked from any section)
 rate-limit-outline.md  lecture outline (source material, not rendered)
 ```
 
