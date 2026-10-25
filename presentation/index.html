@@ -65,6 +65,14 @@
 
 <div class="progress"><i></i></div>
 <div class="pager"></div>
+<details class="deck-settings">
+  <summary>Settings</summary>
+  <label for="deck-version">Deck version</label>
+  <select id="deck-version">
+    <option value="basic">Basic — sections 1–4</option>
+    <option value="full">Full — all sections</option>
+  </select>
+</details>
 
 <script src="js/charts-lib.js"></script>
 <script>
@@ -72,6 +80,21 @@
 // Order here is slide order. Each section's inline <script> (its charts) runs after all
 // slides are in the DOM and before deck.js counts data-step reveals.
 (async () => {
+  const requested = new URLSearchParams(location.search).get('version');
+  let version = requested === 'full' ? 'full' : 'basic';
+  if (!['basic', 'simple', 'full'].includes(requested)) {
+    try { version = localStorage.getItem('vntech-rl-version') === 'full' ? 'full' : 'basic'; }
+    catch { /* storage can be unavailable */ }
+  }
+  const versionSelect = document.getElementById('deck-version');
+  versionSelect.value = version;
+  versionSelect.addEventListener('change', () => {
+    try { localStorage.setItem('vntech-rl-version', versionSelect.value); } catch { /* storage can be unavailable */ }
+    const url = new URL(location.href);
+    url.searchParams.set('version', versionSelect.value);
+    url.hash = '1.0';
+    location.assign(url.href);
+  });
   const SECTIONS = [
     '00-cover',
     '00-outline',
@@ -86,7 +109,8 @@
   // Cache-bust the stylesheet too: a cached deck.css leaves new slides (e.g. the outline) unstyled.
   document.querySelector('link[href="css/deck.css"]').href = `css/deck.css?v=${Date.now()}`;
   const deck = document.getElementById('deck');
-  const htmls = await Promise.all(SECTIONS.map((n) =>
+  const selectedSections = version === 'full' ? SECTIONS : SECTIONS.slice(0, 6);
+  const htmls = await Promise.all(selectedSections.map((n) =>
     fetch(`sections/${n}.html`, { cache: 'no-cache' }).then((r) => {
       if (!r.ok) throw new Error(`sections/${n}.html: HTTP ${r.status}`);
       return r.text();
@@ -97,6 +121,17 @@
     tpl.innerHTML = html;
     tpl.content.querySelectorAll('script').forEach((s) => { scripts.push(s.textContent); s.remove(); });
     deck.appendChild(tpl.content);
+  });
+  if (version === 'basic') {
+    deck.querySelectorAll('#outline-list > li').forEach((li) => {
+      if (!deck.querySelector(`.slide[data-section="${li.dataset.divider}"]`)) li.remove();
+    });
+    deck.querySelector('[data-section="outline"] h2').textContent =
+      'Four sections: why limit, where to limit, and how to count.';
+  }
+  const slides = [...deck.querySelectorAll('.slide')];
+  slides.forEach((slide, i) => {
+    slide.querySelector('.foot > span').textContent = `${i + 1} / ${slides.length}`;
   });
   scripts.forEach((code) => {
     const s = document.createElement('script');

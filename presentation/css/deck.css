@@ -414,6 +414,19 @@ body.overview .slide > *:not(.foot) { opacity: 1; transform: none; transition: n
 .progress { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: var(--hairline-soft); }
 .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s ease; }
 .pager { position: fixed; right: 20px; bottom: 12px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.deck-settings {
+  position: fixed; left: 20px; bottom: 12px; z-index: 5;
+  padding: 10px 14px; max-width: calc(100vw - 68px);
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--body); font-size: 14px;
+}
+.deck-settings summary { cursor: pointer; font-weight: 500; }
+.deck-settings label { display: block; margin: 14px 0 8px; }
+.deck-settings select {
+  max-width: 100%; padding: 8px; font: inherit; border: 1px solid var(--hairline);
+  border-radius: var(--r-sm); color: var(--ink); background: var(--surface);
+}
+.deck-settings :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ---------- overview (O) ---------- */
 body.overview { overflow: auto; }
@@ -445,5 +458,5 @@ body.overview .progress, body.overview .pager { display: none; }
   }
   [data-step] { opacity: 1; transform: none; }
   .slide > *:not(.foot) { opacity: 1; transform: none; transition: none; }
-  .progress, .pager { display: none; }
+  .progress, .pager, .deck-settings { display: none; }
 }

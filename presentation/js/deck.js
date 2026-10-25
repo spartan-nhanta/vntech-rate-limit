@@ -76,8 +76,10 @@
   };
 
   function applyStoredTheme() {
-    const saved = localStorage.getItem('rl-theme');
-    if (saved) document.documentElement.dataset.theme = saved;
+    try {
+      const saved = localStorage.getItem('rl-theme');
+      if (saved) document.documentElement.dataset.theme = saved;
+    } catch { /* storage can be unavailable */ }
   }
   function toggleTheme() {
     const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -88,7 +90,8 @@
   }
 
   document.addEventListener('keydown', (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target.matches('input')) return;
+    if (e.key === 'Escape') document.querySelector('.deck-settings')?.removeAttribute('open');
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, select, textarea, button, a, details, [contenteditable="true"]')) return;
     const overview = document.body.classList.contains('overview');
     switch (e.key) {
       case 'ArrowRight': case 'PageDown': case ' ': case 'Enter':

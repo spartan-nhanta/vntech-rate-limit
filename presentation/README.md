@@ -6,6 +6,13 @@ HTML slides for a talk about rate limiting: the five algorithms, where a rate li
 
 The deck is deployed to this repo's GitHub Pages every time someone pushes to `main`.
 
+The default **Basic** version includes the cover, outline, and sections 1–4 (38 slides).
+Use **Settings** in the bottom-left corner to switch to **Full** (52 slides), including
+system design, case studies, and takeaways. Switching versions restarts at the cover.
+The browser remembers the selection. Share `?version=basic` or `?version=full` to
+open a specific version. The outline, slide numbering, overview, and printing follow
+the selected version. All section source files remain intact.
+
 ## Run locally
 
 You **must open the deck over HTTP**. Double-clicking `index.html` will not work.
