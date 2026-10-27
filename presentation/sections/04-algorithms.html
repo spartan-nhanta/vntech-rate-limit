@@ -217,6 +217,7 @@
       <div class="chart meter">
         <svg id="gantt"></svg>
         <div class="scrub">
+          <div class="seg"><button id="gantt-play" type="button" aria-pressed="false">Play</button></div>
           <input id="gantt-scrub" type="range" min="0" max="1000" step="10" value="0" aria-label="Move now" />
           <span class="readout compact">now <b id="gantt-now">0</b> ms</span>
           <div class="legend"><span><i class="lg-dot"></i>spends 1 token</span><span><i class="lg-dot risk"></i>empty → 429</span></div>
@@ -292,6 +293,7 @@
       <div class="chart meter">
         <svg id="lb-gantt"></svg>
         <div class="scrub">
+          <div class="seg"><button id="lb-play" type="button" aria-pressed="false">Play</button></div>
           <input id="lb-scrub" type="range" min="0" max="2000" step="10" value="0" aria-label="Move now" />
           <span class="readout compact">now <b id="lb-now">0</b> ms</span>
           <div class="legend"><span><i class="lg-dot"></i>in bucket</span><span><i class="lg-dot old"></i>leaked out</span><span><i class="lg-dot risk"></i>429</span></div>
@@ -492,10 +494,7 @@ water += 1</pre>
     // Drag "now": a request appears once its timestamp is reached. For 10 ms at each arrival the
     // bucket shows the refilled count, then what is left after the request spends its token.
     const nowLine = el('line', { y1: T, y2: H - B, class: 'sv-line' }, svg);
-    const scrub = $('gantt-scrub');
-    function update() {
-      const now = Number(scrub.value);
-      $('gantt-now').textContent = now;
+    function update(now) {
       nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
       reveal.forEach(({ t, g }) => { g.style.opacity = t <= now ? 1 : 0; });
       const past = sim.filter((e) => e.t <= now);
@@ -504,8 +503,7 @@ water += 1</pre>
       if (now < at + 10) setBucket(group[0].have, group[0].have - group[0].before);
       else setBucket(group[group.length - 1].after, null);
     }
-    scrub.addEventListener('input', update);
-    update();
+    timeline({ svg, prefix: 'gantt', end: 1000, speed: 200, ticksPerUnit: 1, digits: 0, render: update });
   }
 
   // Leaky bucket as a queue: capacity 5, one request leaks out on each 200 ms tick (200, 400, …).
@@ -528,7 +526,7 @@ water += 1</pre>
 
   function leakyMotion() {
     const reqs = leakySim();
-    const left = $('lb-bucket'), right = $('lb-gantt'), scrub = $('lb-scrub');
+    const left = $('lb-bucket'), right = $('lb-gantt');
     const coin = (parent, id, r) => {
       const g = el('g', { class: 'coin' }, parent);
       el('circle', { r }, g);
@@ -580,9 +578,7 @@ water += 1</pre>
     });
     const nowLine = el('line', { y1: T, y2: H - B, class: 'sv-line' }, right);
 
-    function update() {
-      const now = Number(scrub.value);
-      $('lb-now').textContent = now;
+    function update(now) {
       nowLine.setAttribute('x1', x(now)); nowLine.setAttribute('x2', x(now));
       const waiting = reqs.filter((q) => q.ok && q.t <= now && q.out > now);
       const sent = reqs.filter((q) => q.ok && q.out <= now).sort((a, b) => a.out - b.out);
@@ -614,8 +610,7 @@ water += 1</pre>
         row.lbl.textContent = state === 'risk' ? '429 · bucket full' : state === 'old' ? `leaked ${q.out} ms` : 'in bucket';
       });
     }
-    scrub.addEventListener('input', update);
-    update();
+    timeline({ svg: right, prefix: 'lb', end: LB_END, speed: 200, ticksPerUnit: 1, digits: 0, render: update });
   }
 
   function fixedWindowChart(svg, { w1, w2, zone }) {
@@ -668,14 +663,14 @@ water += 1</pre>
 
   // Play / pause / scrub for a 0 → end animation. Restarts from 0 each time its slide is entered.
   // Expects #<prefix>-play, #<prefix>-scrub and #<prefix>-now next to the svg.
-  function timeline({ svg, prefix, end, speed, render }) {
+  function timeline({ svg, prefix, end, speed, ticksPerUnit = 10, digits = 1, render }) {
     const btn = $(`${prefix}-play`), scrub = $(`${prefix}-scrub`), out = $(`${prefix}-now`), slide = svg.closest('.slide');
-    scrub.max = end * 10;
+    scrub.max = end * ticksPerUnit;
     let now = 0, playing = false, last = null, raf = 0, wasActive = false;
     function set(v) {
       now = v;
-      scrub.value = Math.round(v * 10);
-      out.textContent = fmt(v, 1);
+      scrub.value = Math.round(v * ticksPerUnit);
+      out.textContent = fmt(v, digits);
       render(v);
     }
     function stop() {
@@ -701,7 +696,7 @@ water += 1</pre>
       raf = requestAnimationFrame(frame);
     }
     btn.addEventListener('click', () => (playing ? stop() : play()));
-    scrub.addEventListener('input', () => { stop(); set(Number(scrub.value) / 10); });
+    scrub.addEventListener('input', () => { set(Number(scrub.value) / ticksPerUnit); stop(); });
 
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     new MutationObserver(() => {

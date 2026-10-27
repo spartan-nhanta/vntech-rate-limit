@@ -91,7 +91,9 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') document.querySelector('.deck-settings')?.removeAttribute('open');
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, select, textarea, button, a, details, [contenteditable="true"]')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input, select, textarea, details, [contenteditable="true"]')) return;
+    // Keep native activation for controls, but let arrow/page keys navigate after Play/Pause.
+    if ([' ', 'Enter'].includes(e.key) && e.target.closest('button, a')) return;
     const overview = document.body.classList.contains('overview');
     switch (e.key) {
       case 'ArrowRight': case 'PageDown': case ' ': case 'Enter':
